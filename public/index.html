@@ -1,0 +1,225 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>comfy-mac</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="brand">
+        <span class="logo">◆</span>
+        <span>comfy<span class="dim">-mac</span></span>
+      </div>
+      <div class="status" id="status">
+        <select id="connSelect" class="connsel" title="Connection: Auto tries home WiFi first, then Tailscale"></select>
+        <span class="dot" id="dot"></span>
+        <span id="statusText">connecting…</span>
+        <button id="importBtn" class="freebtn" title="Import a saved package (recipe.json) to recreate a render">Import</button>
+        <button id="freeVram" class="freebtn" title="Unload models and free VRAM — no ComfyUI restart needed">Free VRAM</button>
+        <input type="file" id="importFile" accept="application/json,.json" hidden />
+      </div>
+    </header>
+
+    <main class="layout">
+      <!-- Controls -->
+      <section class="panel controls">
+        <div class="modetabs" id="modeTabs">
+          <button type="button" class="modetab is-active" data-mode="text2img">Text to Image</button>
+          <button type="button" class="modetab" data-mode="img2img">Image to Image</button>
+          <button type="button" class="modetab" data-mode="img2vid">Image to Video</button>
+        </div>
+
+        <div id="emptyMode" class="empty-mode hidden">No workflow added for this mode yet.</div>
+
+        <div id="genArea">
+          <label class="field">
+            <span class="label">Workflow</span>
+            <select id="workflow"></select>
+          </label>
+
+          <div class="tabs" id="tabs">
+            <button type="button" class="tab is-active" data-tab="render">⚡ Render</button>
+            <button type="button" class="tab" data-tab="batch">☰ Batch</button>
+          </div>
+
+          <div class="field hidden" id="imageField">
+            <span class="label">Input image</span>
+            <div class="dropzone" id="dropzone">
+              <input type="file" id="imageInput" accept="image/*" hidden />
+              <span class="dz-hint" id="dzHint">Drop an image here, or click to choose</span>
+              <img id="imagePreview" class="hidden" alt="input" />
+              <button type="button" id="imageClear" class="dz-clear hidden" title="Remove image">×</button>
+            </div>
+          </div>
+
+          <label class="field">
+            <span class="label" id="positiveLabel">Positive prompt</span>
+            <textarea id="positive" rows="6" placeholder="Describe what you want to see…"></textarea>
+          </label>
+
+        <label class="field" id="negativeField">
+          <span class="label">Negative prompt</span>
+          <textarea id="negative" rows="3" placeholder="What to avoid…"></textarea>
+        </label>
+
+        <div class="batch-only hidden">
+          <button type="button" id="addToQueue" class="ghost">+ Add to queue</button>
+          <div class="queue" id="queue"></div>
+        </div>
+
+        <div class="field">
+          <span class="label">Seed</span>
+          <div class="seed-row">
+            <input type="number" id="seed" placeholder="random" min="0" />
+            <button type="button" id="randomBtn" class="toggle is-on" title="Randomize the seed every run">
+              🎲 random
+            </button>
+          </div>
+        </div>
+
+        <div class="field">
+          <span class="label">Images per prompt</span>
+          <input type="number" id="count" min="1" max="50" value="1" title="Render this many variations (one after another)" />
+        </div>
+
+        <div class="field" id="sizeField">
+          <span class="label">Size</span>
+          <div class="size-row">
+            <input type="number" id="width" step="8" min="64" />
+            <span class="x">×</span>
+            <input type="number" id="height" step="8" min="64" />
+            <button type="button" id="swap" class="toggle" title="Swap width and height">⇄</button>
+          </div>
+          <div class="presets" id="presets">
+            <button type="button" data-w="1080" data-h="1920">IG</button>
+            <button type="button" data-w="1024" data-h="1024">1:1</button>
+            <button type="button" data-w="896" data-h="1152">3:4</button>
+            <button type="button" data-w="1152" data-h="896">4:3</button>
+            <button type="button" data-w="1088" data-h="1344">portrait</button>
+            <button type="button" data-w="1344" data-h="1088">landscape</button>
+          </div>
+        </div>
+
+        <label class="field" id="denoiseField">
+          <span class="label">Denoise <span class="dim" id="denoiseHint"></span></span>
+          <div class="slider-row">
+            <input type="range" id="denoiseRange" min="0" max="1" step="0.05" />
+            <input type="number" id="denoise" step="0.05" min="0" max="1" />
+          </div>
+        </label>
+
+        <label class="field hidden" id="resolutionField">
+          <span class="label">Resolution <span class="dim">(short side, px · test small → export big)</span></span>
+          <input type="number" id="resolution" step="16" min="64" />
+        </label>
+
+        <div class="grid2">
+          <label class="field hidden" id="framesField">
+            <span class="label">Frames</span>
+            <input type="number" id="frames" min="1" />
+          </label>
+          <label class="field hidden" id="fpsField">
+            <span class="label">FPS</span>
+            <input type="number" id="fps" min="1" step="1" />
+          </label>
+        </div>
+
+        <label class="field">
+          <span class="label">Filename prefix</span>
+          <input type="text" id="prefix" placeholder="z-image-turbo" />
+        </label>
+
+        <label class="field">
+          <span class="label">Save to (folder on this Mac)</span>
+          <input type="text" id="saveDir" placeholder="~/Pictures/comfy-mac" />
+        </label>
+
+        <div class="grid2">
+          <label class="field">
+            <span class="label">Steps</span>
+            <input type="number" id="steps" min="1" max="100" />
+          </label>
+          <label class="field" id="cfgField">
+            <span class="label">CFG</span>
+            <input type="number" id="cfg" step="0.1" min="0" />
+          </label>
+        </div>
+
+          <label class="field" id="samplerField">
+            <span class="label">Sampler</span>
+            <select id="sampler">
+              <option>euler</option>
+              <option>euler_ancestral</option>
+              <option>heun</option>
+              <option>dpm_2</option>
+              <option>dpmpp_2m</option>
+              <option>dpmpp_2m_sde</option>
+              <option>dpmpp_3m_sde</option>
+              <option>dpmpp_sde</option>
+              <option>ddim</option>
+              <option>uni_pc</option>
+              <option>lms</option>
+              <option>res_multistep</option>
+            </select>
+          </label>
+
+          <label class="field" id="schedulerField">
+            <span class="label">Scheduler</span>
+            <select id="scheduler">
+              <option>normal</option>
+              <option>simple</option>
+              <option>karras</option>
+              <option>exponential</option>
+              <option>sgm_uniform</option>
+              <option>beta</option>
+              <option>ddim_uniform</option>
+            </select>
+          </label>
+
+          <div id="toggles" class="toggles"></div>
+
+          <button id="generate" class="primary render-only">Generate <kbd>⌘↵</kbd></button>
+
+          <div class="batch-only hidden batch-actions">
+            <button type="button" id="runQueue" class="primary">Run queue</button>
+            <button type="button" id="clearQueue" class="ghost">Clear</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Output -->
+      <section class="panel stage">
+        <div class="canvas" id="canvas">
+          <div class="placeholder" id="placeholder">
+            <div class="ph-icon">◆</div>
+            <p>Your image will appear here</p>
+          </div>
+          <img id="result" class="hidden" alt="result" />
+          <video id="resultVideo" class="hidden" autoplay loop muted playsinline></video>
+          <div class="progress hidden" id="progress">
+            <div class="bar"><div class="fill" id="bar"></div></div>
+            <div class="progress-text" id="progressText">Queued…</div>
+          </div>
+        </div>
+
+        <div class="resultbar hidden" id="resultbar">
+          <span class="meta" id="resultMeta"></span>
+          <div class="actions">
+            <button id="useSeed" class="ghost small" title="Reuse this seed next time">Use seed</button>
+            <button id="savePackage" class="ghost small" title="Save a snapshot (render + recipe.json to recreate it exactly)">Save package</button>
+            <a id="download" class="ghost small" download>Download</a>
+            <a id="openFull" class="ghost small" target="_blank">Open</a>
+          </div>
+        </div>
+
+        <div class="history" id="history"></div>
+      </section>
+    </main>
+
+    <div class="toast hidden" id="toast"></div>
+
+    <script src="app.js"></script>
+  </body>
+</html>

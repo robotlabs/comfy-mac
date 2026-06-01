@@ -1,0 +1,121 @@
+{
+  "comfy": {
+    "port": 8000,
+    "hosts": [
+      { "label": "Home (LAN)", "host": "192.168.1.194" },
+      { "label": "Remote (Tailscale)", "host": "100.65.146.55" }
+    ]
+  },
+  "server": {
+    "port": 4242
+  },
+  "output": {
+    "saveDirs": ["/Users/roberto/io/local-labs/ai-comfy", "~/Pictures/comfy-mac"]
+  },
+  "defaultWorkflow": "z-image-turbo",
+  "workflows": [
+    {
+      "id": "z-image-turbo",
+      "name": "Z-Image Turbo",
+      "type": "text2img",
+      "template": "server/workflows/z-image-turbo.json",
+      "promptMode": "positive-negative",
+      "fields": {
+        "positive": { "node": "104:90", "field": "text" },
+        "negative": { "node": "104:109", "field": "text" },
+        "seed":      { "node": "104:92", "field": "seed" },
+        "steps":     { "node": "104:92", "field": "steps" },
+        "cfg":       { "node": "104:92", "field": "cfg" },
+        "sampler":   { "node": "104:92", "field": "sampler_name" },
+        "scheduler": { "node": "104:92", "field": "scheduler" },
+        "denoise":   { "node": "104:92", "field": "denoise" },
+        "width":     { "node": "104:91", "field": "width" },
+        "height":    { "node": "104:91", "field": "height" },
+        "prefix":    { "node": "60", "field": "filename_prefix" }
+      },
+      "defaults": { "steps": 4, "cfg": 1.0, "sampler": "res_multistep", "scheduler": "simple", "denoise": 1.0, "width": 1080, "height": 1920 }
+    },
+    {
+      "id": "flux-schnell",
+      "name": "FLUX Schnell",
+      "type": "text2img",
+      "template": "server/workflows/flux-schnell.json",
+      "promptMode": "single",
+      "fields": {
+        "prompt":    { "node": "6", "field": "text" },
+        "seed":      { "node": "25", "field": "noise_seed" },
+        "steps":     { "node": "17", "field": "steps" },
+        "scheduler": { "node": "17", "field": "scheduler" },
+        "denoise":   { "node": "17", "field": "denoise" },
+        "sampler":   { "node": "16", "field": "sampler_name" },
+        "width":     { "node": "5", "field": "width" },
+        "height":    { "node": "5", "field": "height" },
+        "prefix":    { "node": "9", "field": "filename_prefix" }
+      },
+      "defaults": { "steps": 20, "sampler": "euler", "scheduler": "normal", "denoise": 1.0, "width": 1080, "height": 1920 }
+    },
+    {
+      "id": "qwen-image-2512",
+      "name": "Qwen-Image 2512",
+      "type": "text2img",
+      "template": "server/workflows/qwen-image-2512.json",
+      "promptMode": "positive-negative",
+      "fields": {
+        "positive":  { "node": "238:227", "field": "text" },
+        "negative":  { "node": "238:228", "field": "text" },
+        "seed":      { "node": "238:230", "field": "seed" },
+        "steps":     { "node": "238:224", "field": "value" },
+        "cfg":       { "node": "238:223", "field": "value" },
+        "sampler":   { "node": "238:230", "field": "sampler_name" },
+        "scheduler": { "node": "238:230", "field": "scheduler" },
+        "width":     { "node": "238:232", "field": "width" },
+        "height":    { "node": "238:232", "field": "height" },
+        "prefix":    { "node": "60", "field": "filename_prefix" }
+      },
+      "toggles": [
+        { "key": "fast", "label": "4-step fast mode (Lightning LoRA)", "node": "238:229", "field": "value", "default": false }
+      ],
+      "defaults": { "steps": 50, "cfg": 4.0, "sampler": "euler", "scheduler": "simple", "width": 1080, "height": 1920 }
+    },
+    {
+      "id": "z-image-img2img",
+      "name": "Z-Image (img2img)",
+      "type": "img2img",
+      "template": "server/workflows/z-image-img2img.json",
+      "promptMode": "positive-negative",
+      "fields": {
+        "image":     { "node": "70", "field": "image" },
+        "positive":  { "node": "68", "field": "text" },
+        "negative":  { "node": "69", "field": "text" },
+        "seed":      { "node": "72", "field": "seed" },
+        "steps":     { "node": "72", "field": "steps" },
+        "cfg":       { "node": "72", "field": "cfg" },
+        "sampler":   { "node": "72", "field": "sampler_name" },
+        "scheduler": { "node": "72", "field": "scheduler" },
+        "denoise":   { "node": "72", "field": "denoise" },
+        "prefix":    { "node": "74", "field": "filename_prefix" }
+      },
+      "defaults": { "steps": 20, "cfg": 8.0, "sampler": "euler", "scheduler": "normal", "denoise": 0.5 }
+    },
+    {
+      "id": "wan-img2vid",
+      "name": "WAN Image→Video",
+      "type": "img2vid",
+      "template": "server/workflows/wan-img2vid.json",
+      "promptMode": "positive-negative",
+      "fields": {
+        "image":      { "node": "148", "field": "image" },
+        "positive":   { "node": "134", "field": "text" },
+        "negative":   { "node": "137", "field": "text" },
+        "resolution": { "node": "147", "field": "value" },
+        "seed":       [ { "node": "139", "field": "seed" }, { "node": "140", "field": "seed" } ],
+        "cfg":        [ { "node": "139", "field": "cfg" }, { "node": "140", "field": "cfg" } ],
+        "steps":      { "node": "150", "field": "value" },
+        "frames":     { "node": "156", "field": "num_frames" },
+        "fps":        { "node": "116", "field": "fps" },
+        "prefix":     { "node": "117", "field": "filename_prefix" }
+      },
+      "defaults": { "resolution": 320, "steps": 20, "cfg": 5.0, "frames": 65, "fps": 32 }
+    }
+  ]
+}

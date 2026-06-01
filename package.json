@@ -1,0 +1,14 @@
+{
+  "name": "comfy-mac",
+  "version": "0.1.0",
+  "description": "Send prompts from a Mac to a ComfyUI instance on a GPU PC over the LAN and get images back.",
+  "type": "module",
+  "scripts": {
+    "start": "node server/index.js",
+    "dev": "node --watch server/index.js"
+  },
+  "dependencies": {
+    "express": "^4.21.2",
+    "ws": "^8.18.0"
+  }
+}

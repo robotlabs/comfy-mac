@@ -1,0 +1,142 @@
+{
+  "65": {
+    "inputs": {
+      "unet_name": "z_image_turbo_bf16.safetensors",
+      "weight_dtype": "default"
+    },
+    "class_type": "UNETLoader",
+    "_meta": {
+      "title": "Load Diffusion Model"
+    }
+  },
+  "66": {
+    "inputs": {
+      "clip_name": "qwen_3_4b.safetensors",
+      "type": "stable_diffusion",
+      "device": "default"
+    },
+    "class_type": "CLIPLoader",
+    "_meta": {
+      "title": "Load CLIP"
+    }
+  },
+  "67": {
+    "inputs": {
+      "vae_name": "ae.safetensors"
+    },
+    "class_type": "VAELoader",
+    "_meta": {
+      "title": "Load VAE"
+    }
+  },
+  "68": {
+    "inputs": {
+      "text": "photorealistic, cinematic film still, masterpiece, 8k uhd, highly detailed skin texture, pores, realistic eyes, natural lighting, depth of field, bokeh, shot on 35mm lens, f/1.8, soft shadows, volumetric fog, intricate textures, hyper-realistic, professional color grading, dramatic atmosphere, moody lighting.",
+      "clip": [
+        "66",
+        0
+      ]
+    },
+    "class_type": "CLIPTextEncode",
+    "_meta": {
+      "title": "CLIP Text Encode (Prompt)"
+    }
+  },
+  "69": {
+    "inputs": {
+      "text": "drawing, painting, anime, manga, sketch, 2D, cartoon, illustration, cel shaded, outlines, black borders, ink, paper texture, watermark, signature, blurry, low resolution, distorted anatomy, CGI, 3D render, plastic skin, flat lighting, monochromatic.",
+      "clip": [
+        "66",
+        0
+      ]
+    },
+    "class_type": "CLIPTextEncode",
+    "_meta": {
+      "title": "CLIP Text Encode (Prompt)"
+    }
+  },
+  "70": {
+    "inputs": {
+      "image": "ComfyUI_00022_.png"
+    },
+    "class_type": "LoadImage",
+    "_meta": {
+      "title": "Load Image"
+    }
+  },
+  "71": {
+    "inputs": {
+      "pixels": [
+        "70",
+        0
+      ],
+      "vae": [
+        "67",
+        0
+      ]
+    },
+    "class_type": "VAEEncode",
+    "_meta": {
+      "title": "VAE Encode"
+    }
+  },
+  "72": {
+    "inputs": {
+      "seed": 971960291555756,
+      "steps": 20,
+      "cfg": 8.0,
+      "sampler_name": "euler",
+      "scheduler": "normal",
+      "denoise": 0.5,
+      "model": [
+        "65",
+        0
+      ],
+      "positive": [
+        "68",
+        0
+      ],
+      "negative": [
+        "69",
+        0
+      ],
+      "latent_image": [
+        "71",
+        0
+      ]
+    },
+    "class_type": "KSampler",
+    "_meta": {
+      "title": "KSampler"
+    }
+  },
+  "73": {
+    "inputs": {
+      "samples": [
+        "72",
+        0
+      ],
+      "vae": [
+        "67",
+        0
+      ]
+    },
+    "class_type": "VAEDecode",
+    "_meta": {
+      "title": "VAE Decode"
+    }
+  },
+  "74": {
+    "inputs": {
+      "filename_prefix": "ComfyUI",
+      "images": [
+        "73",
+        0
+      ]
+    },
+    "class_type": "SaveImage",
+    "_meta": {
+      "title": "Save Image"
+    }
+  }
+}

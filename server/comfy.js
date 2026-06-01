@@ -1,0 +1,126 @@
+import WebSocket from "ws";
+import { randomUUID } from "node:crypto";
+
+// Thin client for a remote ComfyUI server: queues prompts over HTTP and
+// listens to the execution WebSocket so we can relay live progress.
+export class ComfyClient {
+  constructor({ host, port }) {
+    this.host = host;
+    this.port = port;
+    this.base = `http://${host}:${port}`;
+    this.wsBase = `ws://${host}:${port}`;
+    this.clientId = randomUUID();
+    this.ws = null;
+    this.listeners = new Set();
+    this.connected = false;
+  }
+
+  connect() {
+    const url = `${this.wsBase}/ws?clientId=${this.clientId}`;
+    const ws = new WebSocket(url);
+    this.ws = ws;
+
+    ws.on("open", () => {
+      this.connected = true;
+      this.emit({ type: "_socket", data: { connected: true } });
+    });
+
+    ws.on("message", (raw, isBinary) => {
+      if (isBinary) return; // latent preview frames — ignored
+      try {
+        this.emit(JSON.parse(raw.toString()));
+      } catch {
+        /* ignore non-JSON frames */
+      }
+    });
+
+    ws.on("close", () => {
+      this.connected = false;
+      this.emit({ type: "_socket", data: { connected: false } });
+      setTimeout(() => this.connect(), 2000);
+    });
+
+    ws.on("error", () => ws.close());
+  }
+
+  // Point at a different host (LAN vs Tailscale) and reconnect the websocket.
+  setHost(host) {
+    if (!host || host === this.host) return;
+    this.host = host;
+    this.base = `http://${host}:${this.port}`;
+    this.wsBase = `ws://${host}:${this.port}`;
+    if (this.ws) {
+      this.ws.removeAllListeners();
+      try {
+        this.ws.close();
+      } catch {}
+      this.ws = null;
+    }
+    this.connected = false;
+    this.connect();
+  }
+
+  onMessage(fn) {
+    this.listeners.add(fn);
+    return () => this.listeners.delete(fn);
+  }
+
+  emit(msg) {
+    for (const fn of this.listeners) fn(msg);
+  }
+
+  async queue(promptGraph) {
+    const res = await fetch(`${this.base}/prompt`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ prompt: promptGraph, client_id: this.clientId }),
+      signal: AbortSignal.timeout(15000),
+    });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      const err = new Error(body?.error?.message || `ComfyUI returned ${res.status}`);
+      err.detail = body;
+      throw err;
+    }
+    return body; // { prompt_id, number, node_errors }
+  }
+
+  async interrupt() {
+    await fetch(`${this.base}/interrupt`, { method: "POST" });
+  }
+
+  // Ask ComfyUI to unload models and free VRAM (no restart needed).
+  async free() {
+    await fetch(`${this.base}/free`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ unload_models: true, free_memory: true }),
+      signal: AbortSignal.timeout(8000),
+    });
+  }
+
+  // Upload an input image into ComfyUI's input folder. Returns { name, subfolder, type }.
+  async uploadImage(buffer, filename, contentType) {
+    const form = new FormData();
+    form.append("image", new Blob([buffer], { type: contentType || "image/png" }), filename || "upload.png");
+    form.append("overwrite", "true");
+    const res = await fetch(`${this.base}/upload/image`, {
+      method: "POST",
+      body: form,
+      signal: AbortSignal.timeout(20000),
+    });
+    if (!res.ok) throw new Error(`ComfyUI upload returned ${res.status}`);
+    return res.json();
+  }
+
+  async systemStats() {
+    const res = await fetch(`${this.base}/system_stats`, { signal: AbortSignal.timeout(4000) });
+    if (!res.ok) throw new Error(`system_stats ${res.status}`);
+    return res.json();
+  }
+
+  imageUrl({ filename, subfolder = "", type = "output" }) {
+    const q = new URLSearchParams({ filename, subfolder, type });
+    return `${this.base}/view?${q}`;
+  }
+}

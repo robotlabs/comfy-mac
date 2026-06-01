@@ -1,0 +1,141 @@
+{
+  "60": {
+    "inputs": {
+      "filename_prefix": "z-image-turbo",
+      "images": [
+        "104:88",
+        0
+      ]
+    },
+    "class_type": "SaveImage",
+    "_meta": {
+      "title": "Save Image"
+    }
+  },
+  "104:85": {
+    "inputs": {
+      "clip_name": "qwen_3_4b.safetensors",
+      "type": "lumina2",
+      "device": "default"
+    },
+    "class_type": "CLIPLoader",
+    "_meta": {
+      "title": "Load CLIP"
+    }
+  },
+  "104:86": {
+    "inputs": {
+      "vae_name": "ae.safetensors"
+    },
+    "class_type": "VAELoader",
+    "_meta": {
+      "title": "Load VAE"
+    }
+  },
+  "104:88": {
+    "inputs": {
+      "samples": [
+        "104:92",
+        0
+      ],
+      "vae": [
+        "104:86",
+        0
+      ]
+    },
+    "class_type": "VAEDecode",
+    "_meta": {
+      "title": "VAE Decode"
+    }
+  },
+  "104:89": {
+    "inputs": {
+      "unet_name": "z_image_turbo_bf16.safetensors",
+      "weight_dtype": "default"
+    },
+    "class_type": "UNETLoader",
+    "_meta": {
+      "title": "Load Diffusion Model"
+    }
+  },
+  "104:90": {
+    "inputs": {
+      "text": "[character] Photorealistic  full figure and full body of a  of a East Asian woman in her mid-30s\n    sculpted high cheekbones,\n    almond-shaped green brown eyes, \n    sharp refined features, wide full elongated lips with defined edges, \n    strong defined arched eyebrows,\n    sharp winged black eyeliner, \n    smoky shaded eyelids, \n    defined lashes, \n   contoured cheeks, \n    soft mauve lip with subtle gloss, \n    captivating large almond hazel-green eyes with bright catchlights, \n     Prominent freckles scattered across the nose and cheeks, \n       hyper-realistic skin with fine pores and texture,\n          short punk style hairs,\n              defined dark eyebrows, \n    warm olive skin, \n\n    [Env] stylish massive abandoned factory, a lot of rubbish\n\nwe can see her full body, from the feet, to her head, we see her back, she has a tattoo on the back, small tattoo, and we can see her ass, she is looking at the camera,\n\n\n\n   she is wearing an adidas jacket and shorts, not wearing any shoes she has red nails\n\n    photorealistic, hyperdetailed skin texture, 8k,  ultrawide angle,\n    Canon EF 16mm f/1.4, cinematic lighting\n\n\n\n",
+      "clip": [
+        "104:85",
+        0
+      ]
+    },
+    "class_type": "CLIPTextEncode",
+    "_meta": {
+      "title": "CLIP Text Encode (Prompt)"
+    }
+  },
+  "104:91": {
+    "inputs": {
+      "width": 1088,
+      "height": 1344,
+      "batch_size": 1
+    },
+    "class_type": "EmptySD3LatentImage",
+    "_meta": {
+      "title": "EmptySD3LatentImage"
+    }
+  },
+  "104:92": {
+    "inputs": {
+      "seed": 350213997844881,
+      "steps": 4,
+      "cfg": 1.0,
+      "sampler_name": "res_multistep",
+      "scheduler": "simple",
+      "denoise": 1.0,
+      "model": [
+        "104:93",
+        0
+      ],
+      "positive": [
+        "104:90",
+        0
+      ],
+      "negative": [
+        "104:109",
+        0
+      ],
+      "latent_image": [
+        "104:91",
+        0
+      ]
+    },
+    "class_type": "KSampler",
+    "_meta": {
+      "title": "KSampler"
+    }
+  },
+  "104:93": {
+    "inputs": {
+      "shift": 3.0,
+      "model": [
+        "104:89",
+        0
+      ]
+    },
+    "class_type": "ModelSamplingAuraFlow",
+    "_meta": {
+      "title": "ModelSamplingAuraFlow"
+    }
+  },
+  "104:109": {
+    "inputs": {
+      "text": "(close-up:1.8), (portrait:1.8), (macro shot:1.6), zoomed in, cropped head, cropped feet, out of frame body parts, cut off feet, medium shot, torso shot, face focus, looking at camera.",
+      "clip": [
+        "104:85",
+        0
+      ]
+    },
+    "class_type": "CLIPTextEncode",
+    "_meta": {
+      "title": "negative prompt"
+    }
+  }
+}
