@@ -185,6 +185,8 @@ app.get("/api/config", (req, res) => {
       const tmpl = workflows.get(w.id)?.template;
       const neg = w.fields.negative;
       const defaultNegative = neg && tmpl?.[neg.node]?.inputs?.[neg.field];
+      const pre = w.fields.prefix;
+      const defaultPrefix = pre && tmpl?.[pre.node]?.inputs?.[pre.field];
       return {
       id: w.id,
       name: w.name,
@@ -192,6 +194,7 @@ app.get("/api/config", (req, res) => {
       promptMode: w.promptMode,
       defaults: w.defaults,
       defaultNegative: defaultNegative || "",
+      defaultPrefix: defaultPrefix || "",
       toggles: (w.toggles || []).map((t) => ({ key: t.key, label: t.label, default: !!t.default })),
       has: {
         negative: !!w.fields.negative,
@@ -203,6 +206,7 @@ app.get("/api/config", (req, res) => {
         width: !!w.fields.width,
         height: !!w.fields.height,
         image: !!w.fields.image,
+        image2: !!w.fields.image2,
         resolution: !!w.fields.resolution,
         frames: !!w.fields.frames,
         fps: !!w.fields.fps,
@@ -235,6 +239,7 @@ app.post("/api/generate", async (req, res) => {
       positive = "",
       negative = "",
       image,
+      image2,
       seed,
       steps,
       cfg,
@@ -261,6 +266,10 @@ app.post("/api/generate", async (req, res) => {
     if (f.image) {
       if (!image) return res.status(400).json({ error: "This workflow needs an input image." });
       setField(graph, f.image, String(image));
+    }
+    if (f.image2) {
+      if (!image2) return res.status(400).json({ error: "This workflow needs a second image." });
+      setField(graph, f.image2, String(image2));
     }
     if (prefix && String(prefix).trim()) setField(graph, f.prefix, String(prefix).trim());
 
@@ -360,16 +369,17 @@ app.post("/api/package", async (req, res) => {
       }
     }
 
-    let input = null;
-    if (params?.image) {
-      const r = await fetch(comfy.imageUrl({ filename: params.image, type: "input" }));
-      if (r.ok) {
-        const buf = Buffer.from(await r.arrayBuffer());
-        const ext = params.image.split(".").pop() || "png";
-        await writeFile(join(dir, `input.${ext}`), buf);
-        input = { filename: `input.${ext}`, dataBase64: buf.toString("base64") };
-      }
+    async function bundleInput(filename, basename) {
+      if (!filename) return null;
+      const r = await fetch(comfy.imageUrl({ filename, type: "input" }));
+      if (!r.ok) return null;
+      const buf = Buffer.from(await r.arrayBuffer());
+      const ext = filename.split(".").pop() || "png";
+      await writeFile(join(dir, `${basename}.${ext}`), buf);
+      return { filename: `${basename}.${ext}`, dataBase64: buf.toString("base64") };
     }
+    const input = await bundleInput(params?.image, "input");
+    const input2 = await bundleInput(params?.image2, "input2");
 
     const recipe = {
       app: "comfy-mac",
@@ -379,6 +389,7 @@ app.post("/api/package", async (req, res) => {
       workflowName,
       params,
       input,
+      input2,
     };
     await writeFile(join(dir, "recipe.json"), JSON.stringify(recipe, null, 2));
     res.json({ ok: true, dir, render: renderName });

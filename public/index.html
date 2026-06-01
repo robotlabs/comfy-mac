@@ -25,11 +25,15 @@
     <main class="layout">
       <!-- Controls -->
       <section class="panel controls">
-        <div class="modetabs" id="modeTabs">
-          <button type="button" class="modetab is-active" data-mode="text2img">Text to Image</button>
-          <button type="button" class="modetab" data-mode="img2img">Image to Image</button>
-          <button type="button" class="modetab" data-mode="img2vid">Image to Video</button>
-        </div>
+        <label class="field">
+          <span class="label">Mode</span>
+          <select id="modeSelect">
+            <option value="text2img">Text to Image</option>
+            <option value="text2img-img">Text to Image with Image</option>
+            <option value="img2img">Image to Image</option>
+            <option value="img2vid">Image to Video</option>
+          </select>
+        </label>
 
         <div id="emptyMode" class="empty-mode hidden">No workflow added for this mode yet.</div>
 
@@ -45,12 +49,22 @@
           </div>
 
           <div class="field hidden" id="imageField">
-            <span class="label">Input image</span>
+            <span class="label" id="imageLabel">Input image</span>
             <div class="dropzone" id="dropzone">
               <input type="file" id="imageInput" accept="image/*" hidden />
               <span class="dz-hint" id="dzHint">Drop an image here, or click to choose</span>
               <img id="imagePreview" class="hidden" alt="input" />
               <button type="button" id="imageClear" class="dz-clear hidden" title="Remove image">×</button>
+            </div>
+          </div>
+
+          <div class="field hidden" id="imageField2">
+            <span class="label">Image 2 (reference)</span>
+            <div class="dropzone" id="dropzone2">
+              <input type="file" id="imageInput2" accept="image/*" hidden />
+              <span class="dz-hint" id="dzHint2">Drop a second image here, or click to choose</span>
+              <img id="imagePreview2" class="hidden" alt="input2" />
+              <button type="button" id="imageClear2" class="dz-clear hidden" title="Remove image">×</button>
             </div>
           </div>
 
@@ -92,14 +106,17 @@
             <input type="number" id="height" step="8" min="64" />
             <button type="button" id="swap" class="toggle" title="Swap width and height">⇄</button>
           </div>
-          <div class="presets" id="presets">
-            <button type="button" data-w="1080" data-h="1920">IG</button>
-            <button type="button" data-w="1024" data-h="1024">1:1</button>
-            <button type="button" data-w="896" data-h="1152">3:4</button>
-            <button type="button" data-w="1152" data-h="896">4:3</button>
-            <button type="button" data-w="1088" data-h="1344">portrait</button>
-            <button type="button" data-w="1344" data-h="1088">landscape</button>
-          </div>
+          <select id="presets" title="Aspect-ratio presets">
+            <option value="custom">Custom</option>
+            <option data-w="1080" data-h="1920">IG story · 1080×1920</option>
+            <option data-w="1080" data-h="1350">IG post · 1080×1350</option>
+            <option data-w="1080" data-h="1080">IG square · 1080×1080</option>
+            <option data-w="1024" data-h="1024">1:1 · 1024×1024</option>
+            <option data-w="896" data-h="1152">3:4 · 896×1152</option>
+            <option data-w="1152" data-h="896">4:3 · 1152×896</option>
+            <option data-w="1088" data-h="1344">portrait · 1088×1344</option>
+            <option data-w="1344" data-h="1088">landscape · 1344×1088</option>
+          </select>
         </div>
 
         <label class="field" id="denoiseField">

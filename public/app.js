@@ -1,16 +1,23 @@
 const $ = (id) => document.getElementById(id);
 
 const el = {
-  modeTabs: $("modeTabs"),
+  modeSelect: $("modeSelect"),
   emptyMode: $("emptyMode"),
   genArea: $("genArea"),
   workflow: $("workflow"),
   imageField: $("imageField"),
+  imageLabel: $("imageLabel"),
   dropzone: $("dropzone"),
   imageInput: $("imageInput"),
   dzHint: $("dzHint"),
   imagePreview: $("imagePreview"),
   imageClear: $("imageClear"),
+  imageField2: $("imageField2"),
+  dropzone2: $("dropzone2"),
+  imageInput2: $("imageInput2"),
+  dzHint2: $("dzHint2"),
+  imagePreview2: $("imagePreview2"),
+  imageClear2: $("imageClear2"),
   sizeField: $("sizeField"),
   positive: $("positive"),
   positiveLabel: $("positiveLabel"),
@@ -89,7 +96,14 @@ let workflowsList = [];
 let currentWorkflow = null;
 let currentMode = "text2img";
 let toggleState = JSON.parse(localStorage.getItem("comfy-mac") || "{}").toggles || {};
-let uploadedImage = null; // filename in ComfyUI's input folder (for img2img)
+
+// Input image slots — workflows can declare one or two. Each slot owns its dropzone
+// and the filename that came back from ComfyUI after upload.
+const imageSlots = [
+  { key: "image",  field: el.imageField,  dropzone: el.dropzone,  input: el.imageInput,  hint: el.dzHint,  preview: el.imagePreview,  clear: el.imageClear,  uploaded: null },
+  { key: "image2", field: el.imageField2, dropzone: el.dropzone2, input: el.imageInput2, hint: el.dzHint2, preview: el.imagePreview2, clear: el.imageClear2, uploaded: null },
+];
+const imgSlot = (k) => imageSlots.find((s) => s.key === k);
 
 // Batch queue
 let queue = []; // { positive, negative }
@@ -175,20 +189,23 @@ el.denoise.addEventListener("input", syncDenoiseRange);
 function syncPreset() {
   const w = el.width.value,
     h = el.height.value;
-  for (const b of el.presets.children) {
-    b.classList.toggle("active", b.dataset.w === w && b.dataset.h === h);
+  let matchIdx = 0; // 0 == "Custom"
+  for (let i = 0; i < el.presets.options.length; i++) {
+    const o = el.presets.options[i];
+    if (o.dataset.w === w && o.dataset.h === h) { matchIdx = i; break; }
   }
+  el.presets.selectedIndex = matchIdx;
 }
 el.swap.addEventListener("click", () => {
   [el.width.value, el.height.value] = [el.height.value, el.width.value];
   persist();
   syncPreset();
 });
-el.presets.addEventListener("click", (e) => {
-  const b = e.target.closest("button");
-  if (!b) return;
-  el.width.value = b.dataset.w;
-  el.height.value = b.dataset.h;
+el.presets.addEventListener("change", () => {
+  const o = el.presets.selectedOptions[0];
+  if (!o || !o.dataset.w) return; // "Custom" — leave W/H untouched
+  el.width.value = o.dataset.w;
+  el.height.value = o.dataset.h;
   persist();
   syncPreset();
 });
@@ -204,10 +221,10 @@ function setRandomize(on) {
 }
 el.randomBtn.addEventListener("click", () => setRandomize(!randomize));
 
-// Switch top-level mode (text2img / img2img / img2vid): filter workflows, pick one.
+// Switch top-level mode (text2img / text2img-img / img2img / img2vid): filter workflows, pick one.
 function setMode(mode, { workflowId = null, applyDefaults = true } = {}) {
   currentMode = mode;
-  for (const b of el.modeTabs.children) b.classList.toggle("is-active", b.dataset.mode === mode);
+  el.modeSelect.value = mode;
 
   const list = workflowsList.filter((w) => (w.type || "text2img") === mode);
   const empty = list.length === 0;
@@ -262,8 +279,14 @@ function applyWorkflow(id, applyDefaults) {
   el.cfgField.classList.toggle("hidden", !has.cfg);
   el.samplerField.classList.toggle("hidden", !has.sampler);
   el.schedulerField.classList.toggle("hidden", !has.scheduler);
-  el.denoiseField.classList.toggle("hidden", !has.denoise);
+  // Denoise only does something when there's an input image to partially preserve
+  // (img2img / image-edit). For pure text2img it's always 1.0, so hide it.
+  el.denoiseField.classList.toggle("hidden", !(has.denoise && has.image));
   el.imageField.classList.toggle("hidden", !has.image);
+  el.imageField2.classList.toggle("hidden", !has.image2);
+  el.imageLabel.textContent = has.image2 ? "Image 1" : "Input image";
+  // Show the workflow's real save prefix as the placeholder (used when the field is left blank).
+  el.prefix.placeholder = currentWorkflow.defaultPrefix || currentWorkflow.id;
   el.sizeField.classList.toggle("hidden", !has.width);
   el.resolutionField.classList.toggle("hidden", !has.resolution);
   el.framesField.classList.toggle("hidden", !has.frames);
@@ -289,23 +312,20 @@ function applyWorkflow(id, applyDefaults) {
   persist();
 }
 
-el.modeTabs.addEventListener("click", (e) => {
-  const t = e.target.closest(".modetab");
-  if (t) setMode(t.dataset.mode);
-});
+el.modeSelect.addEventListener("change", () => setMode(el.modeSelect.value));
 el.workflow.addEventListener("change", () => applyWorkflow(el.workflow.value, true));
 
-// ---- Input image (img2img) ----
-async function uploadImageFile(file) {
+// ---- Input image slots (img2img / img2vid / text2img-img) ----
+async function uploadImageFile(slot, file) {
   if (!file || !file.type.startsWith("image/")) {
     toast("Choose an image file");
     return;
   }
-  el.imagePreview.src = URL.createObjectURL(file);
-  el.imagePreview.classList.remove("hidden");
-  el.imageClear.classList.remove("hidden");
-  el.dzHint.classList.add("hidden");
-  uploadedImage = null;
+  slot.preview.src = URL.createObjectURL(file);
+  slot.preview.classList.remove("hidden");
+  slot.clear.classList.remove("hidden");
+  slot.hint.classList.add("hidden");
+  slot.uploaded = null;
   try {
     const res = await fetch(`/api/upload?filename=${encodeURIComponent(file.name || "upload.png")}`, {
       method: "POST",
@@ -314,41 +334,53 @@ async function uploadImageFile(file) {
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || "upload failed");
-    uploadedImage = data.name;
+    slot.uploaded = data.name;
   } catch (e) {
     toast("Upload failed: " + (e.message || e));
-    clearImage();
+    clearImage(slot);
   }
 }
 
-function clearImage() {
-  uploadedImage = null;
-  el.imagePreview.src = "";
-  el.imagePreview.classList.add("hidden");
-  el.imageClear.classList.add("hidden");
-  el.dzHint.classList.remove("hidden");
-  el.imageInput.value = "";
+// Re-show a previously-uploaded image (when restoring history or importing a recipe).
+function restoreImageSlot(slot, filename) {
+  if (!filename) return;
+  slot.uploaded = filename;
+  slot.preview.src = "/api/image?" + new URLSearchParams({ filename, type: "input" });
+  slot.preview.classList.remove("hidden");
+  slot.clear.classList.remove("hidden");
+  slot.hint.classList.add("hidden");
 }
 
-el.dropzone.addEventListener("click", () => el.imageInput.click());
-el.imageInput.addEventListener("change", () => uploadImageFile(el.imageInput.files[0]));
-el.imageClear.addEventListener("click", (e) => {
-  e.stopPropagation();
-  clearImage();
-});
-["dragover", "dragenter"].forEach((ev) =>
-  el.dropzone.addEventListener(ev, (e) => {
-    e.preventDefault();
-    el.dropzone.classList.add("dragover");
-  }),
-);
-["dragleave", "drop"].forEach((ev) =>
-  el.dropzone.addEventListener(ev, (e) => {
-    e.preventDefault();
-    el.dropzone.classList.remove("dragover");
-  }),
-);
-el.dropzone.addEventListener("drop", (e) => uploadImageFile(e.dataTransfer.files[0]));
+function clearImage(slot) {
+  slot.uploaded = null;
+  slot.preview.src = "";
+  slot.preview.classList.add("hidden");
+  slot.clear.classList.add("hidden");
+  slot.hint.classList.remove("hidden");
+  slot.input.value = "";
+}
+
+for (const slot of imageSlots) {
+  slot.dropzone.addEventListener("click", () => slot.input.click());
+  slot.input.addEventListener("change", () => uploadImageFile(slot, slot.input.files[0]));
+  slot.clear.addEventListener("click", (e) => {
+    e.stopPropagation();
+    clearImage(slot);
+  });
+  ["dragover", "dragenter"].forEach((ev) =>
+    slot.dropzone.addEventListener(ev, (e) => {
+      e.preventDefault();
+      slot.dropzone.classList.add("dragover");
+    }),
+  );
+  ["dragleave", "drop"].forEach((ev) =>
+    slot.dropzone.addEventListener(ev, (e) => {
+      e.preventDefault();
+      slot.dropzone.classList.remove("dragover");
+    }),
+  );
+  slot.dropzone.addEventListener("drop", (e) => uploadImageFile(slot, e.dataTransfer.files[0]));
+}
 
 // ---- Init defaults + status ----
 async function init() {
@@ -428,6 +460,13 @@ function connectStream() {
   es.onerror = () => setStatus("bad", "reconnecting…");
 }
 
+// Make an /api/image URL unique per render so the browser's long-lived cache can never
+// serve a stale image when ComfyUI recycles a filename.
+function bustCache(url, promptId) {
+  if (!url || !promptId) return url;
+  return url + (url.includes("?") ? "&" : "?") + "v=" + encodeURIComponent(promptId);
+}
+
 function handleEvent(msg) {
   switch (msg.type) {
     case "socket":
@@ -462,12 +501,17 @@ function handleEvent(msg) {
       break;
     }
     case "image": {
+      // ComfyUI restarts its filename counter at _00001_ whenever its output folder is
+      // cleared, so a fresh render can reuse an old filename → identical /api/image URL.
+      // The server caches that URL for a year, so the browser would serve the STALE image.
+      // Append the unique promptId so every render gets a distinct, never-before-cached URL.
+      const url = bustCache(msg.images[0], msg.promptId);
       const job = batchJobs.get(msg.promptId);
       if (job) {
-        completeJob(job, msg.images[0], msg.isVideo);
+        completeJob(job, url, msg.isVideo);
         break;
       }
-      if (msg.promptId === currentPromptId) showImage(msg.images[0], msg.promptId, msg.isVideo);
+      if (msg.promptId === currentPromptId) showImage(url, msg.promptId, msg.isVideo);
       break;
     }
     case "saved": {
@@ -522,7 +566,8 @@ function buildBody(positive, negative, seed) {
     workflow: currentWorkflow?.id,
     positive,
     negative,
-    image: uploadedImage,
+    image: imgSlot("image").uploaded,
+    image2: imgSlot("image2").uploaded,
     seed,
     prefix: el.prefix.value,
     saveDir: el.saveDir.value,
@@ -546,6 +591,7 @@ function paramsFrom(body, seed) {
     positive: body.positive,
     negative: body.negative,
     image: body.image,
+    image2: body.image2,
     steps: body.steps,
     cfg: body.cfg,
     sampler: body.sampler,
@@ -562,10 +608,15 @@ function paramsFrom(body, seed) {
   };
 }
 
-// img2img needs an uploaded image first.
+// Workflows that need input images: warn if the user hasn't uploaded them yet.
 function needsImageButMissing() {
-  if (currentWorkflow?.has?.image && !uploadedImage) {
+  const has = currentWorkflow?.has || {};
+  if (has.image && !imgSlot("image").uploaded) {
     toast("Carica un'immagine di input prima");
+    return true;
+  }
+  if (has.image2 && !imgSlot("image2").uploaded) {
+    toast("Carica anche la seconda immagine");
     return true;
   }
   return false;
@@ -699,13 +750,8 @@ function loadParams(p) {
     toggleState = { ...toggleState, ...p.toggles };
     renderToggles();
   }
-  if (p.image) {
-    uploadedImage = p.image;
-    el.imagePreview.src = "/api/image?" + new URLSearchParams({ filename: p.image, type: "input" });
-    el.imagePreview.classList.remove("hidden");
-    el.imageClear.classList.remove("hidden");
-    el.dzHint.classList.add("hidden");
-  }
+  restoreImageSlot(imgSlot("image"), p.image);
+  restoreImageSlot(imgSlot("image2"), p.image2);
   el.positive.value = p.positive ?? "";
   el.negative.value = p.negative ?? "";
   if (p.prefix != null) el.prefix.value = p.prefix;
@@ -1024,12 +1070,15 @@ el.importFile.addEventListener("change", async () => {
     const recipe = JSON.parse(await file.text());
     const params = recipe.params || recipe;
     loadParams(params);
-    if (recipe.input?.dataBase64) {
-      const bin = atob(recipe.input.dataBase64);
+    async function uploadFromRecipe(slotKey, entry) {
+      if (!entry?.dataBase64) return;
+      const bin = atob(entry.dataBase64);
       const bytes = new Uint8Array(bin.length);
       for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-      await uploadImageFile(new File([bytes], recipe.input.filename || "input.png", { type: "image/png" }));
+      await uploadImageFile(imgSlot(slotKey), new File([bytes], entry.filename || `${slotKey}.png`, { type: "image/png" }));
     }
+    await uploadFromRecipe("image", recipe.input);
+    await uploadFromRecipe("image2", recipe.input2);
     toast("Imported: " + (recipe.workflowName || params.workflow || "package"));
   } catch (e) {
     toast("Import failed: " + (e.message || e));

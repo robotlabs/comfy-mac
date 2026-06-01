@@ -78,6 +78,50 @@
       "defaults": { "steps": 50, "cfg": 4.0, "sampler": "euler", "scheduler": "simple", "width": 1080, "height": 1920 }
     },
     {
+      "id": "qwen-image-2512-turbo",
+      "name": "Qwen-Image 2512 Turbo",
+      "type": "text2img",
+      "template": "server/workflows/qwen-image-2512-turbo.json",
+      "promptMode": "single",
+      "fields": {
+        "prompt":    { "node": "108", "field": "text" },
+        "seed":      { "node": "106", "field": "seed" },
+        "steps":     { "node": "106", "field": "steps" },
+        "cfg":       { "node": "106", "field": "cfg" },
+        "sampler":   { "node": "106", "field": "sampler_name" },
+        "scheduler": { "node": "106", "field": "scheduler" },
+        "denoise":   { "node": "106", "field": "denoise" },
+        "width":     { "node": "107", "field": "width" },
+        "height":    { "node": "107", "field": "height" },
+        "prefix":    { "node": "123", "field": "filename_prefix" }
+      },
+      "defaults": { "steps": 2, "cfg": 1.0, "sampler": "euler", "scheduler": "simple", "denoise": 1.0, "width": 1080, "height": 1920 }
+    },
+    {
+      "id": "qwen-image-edit-2511",
+      "name": "Qwen Image Edit 2511",
+      "type": "text2img-img",
+      "template": "server/workflows/qwen-image-edit-2511.json",
+      "promptMode": "positive-negative",
+      "fields": {
+        "image":     { "node": "41", "field": "image" },
+        "image2":    { "node": "83", "field": "image" },
+        "positive":  { "node": "170:151", "field": "prompt" },
+        "negative":  { "node": "170:149", "field": "prompt" },
+        "seed":      { "node": "170:169", "field": "seed" },
+        "steps":     { "node": "170:166", "field": "value" },
+        "cfg":       { "node": "170:154", "field": "value" },
+        "sampler":   { "node": "170:169", "field": "sampler_name" },
+        "scheduler": { "node": "170:169", "field": "scheduler" },
+        "denoise":   { "node": "170:169", "field": "denoise" },
+        "prefix":    { "node": "9", "field": "filename_prefix" }
+      },
+      "toggles": [
+        { "key": "fast", "label": "4-step fast mode (Lightning LoRA)", "node": "170:168", "field": "value", "default": false }
+      ],
+      "defaults": { "steps": 40, "cfg": 4.0, "sampler": "euler", "scheduler": "simple", "denoise": 1.0 }
+    },
+    {
       "id": "z-image-img2img",
       "name": "Z-Image (img2img)",
       "type": "img2img",
