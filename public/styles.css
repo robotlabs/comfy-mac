@@ -68,6 +68,17 @@ html, body {
 }
 .freebtn:hover { color: var(--text); border-color: var(--accent); }
 .freebtn:disabled { opacity: 0.5; cursor: default; }
+.queue-chip {
+  background: rgba(124, 108, 255, 0.14);
+  border: 1px solid var(--accent);
+  color: var(--text);
+  border-radius: 8px;
+  padding: 4px 9px;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.cancel-btn:hover { color: #fff; border-color: var(--danger); background: rgba(255, 93, 108, 0.14); }
 .dot.ok { background: var(--ok); box-shadow: 0 0 10px 1px rgba(61, 220, 132, 0.5); }
 .dot.bad { background: var(--danger); box-shadow: 0 0 10px 1px rgba(255, 93, 108, 0.5); }
 

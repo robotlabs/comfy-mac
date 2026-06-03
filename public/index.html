@@ -16,6 +16,8 @@
         <select id="connSelect" class="connsel" title="Connection: Auto tries home WiFi first, then Tailscale"></select>
         <span class="dot" id="dot"></span>
         <span id="statusText">connecting…</span>
+        <span id="queueStatus" class="queue-chip hidden"></span>
+        <button id="cancelQueue" class="freebtn cancel-btn hidden" title="Annulla i job in coda su ComfyUI (ferma quello in corso e svuota la coda)">✕ Annulla</button>
         <button id="importBtn" class="freebtn" title="Import a saved package (recipe.json) to recreate a render">Import</button>
         <button id="freeVram" class="freebtn" title="Unload models and free VRAM — no ComfyUI restart needed">Free VRAM</button>
         <input type="file" id="importFile" accept="application/json,.json" hidden />

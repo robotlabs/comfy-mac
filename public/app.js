@@ -77,6 +77,8 @@ const el = {
   statusText: $("statusText"),
   connSelect: $("connSelect"),
   freeVram: $("freeVram"),
+  queueStatus: $("queueStatus"),
+  cancelQueue: $("cancelQueue"),
   toast: $("toast"),
 };
 
@@ -88,6 +90,7 @@ let metaBase = "";
 let currentUrl = null;
 let pendingParams = null;
 let rendering = false;
+let stopRequested = false; // set by "Annulla" to break out of a multi-image single render
 let currentLabel = "";
 let currentWrap = null; // the result currently shown in the canvas
 let onRenderDone = null; // resolves when the in-flight single render completes
@@ -443,8 +446,10 @@ async function refreshHealth() {
     } else {
       setStatus("bad", "ComfyUI unreachable" + (h.hostLabel ? ` (${h.hostLabel})` : ""));
     }
+    updateQueueStatus(h.queue || 0);
   } catch {
     setStatus("bad", "server offline");
+    updateQueueStatus(0);
   }
 }
 
@@ -559,7 +564,18 @@ function handleEvent(msg) {
       }
       break;
     }
+    case "status":
+      updateQueueStatus(msg.queue || 0);
+      break;
   }
+}
+
+// Show "⧗ N in coda" (running + pending on ComfyUI) and the cancel button; hide both at 0.
+function updateQueueStatus(n) {
+  const on = n > 0;
+  el.queueStatus.textContent = on ? `⧗ ${n} in coda` : "";
+  el.queueStatus.classList.toggle("hidden", !on);
+  el.cancelQueue.classList.toggle("hidden", !on);
 }
 
 // ---- Generate ----
@@ -639,6 +655,7 @@ async function generate() {
   if (rendering || batchActive) return;
   if (needsImageButMissing()) return;
   rendering = true;
+  stopRequested = false;
   el.generate.disabled = true;
   el.progress.classList.remove("hidden");
   el.resultbar.classList.add("hidden");
@@ -646,6 +663,7 @@ async function generate() {
   const count = imageCount();
   const base = parseInt(el.seed.value) || 0;
   for (let i = 0; i < count; i++) {
+    if (stopRequested) break;
     const seed = randomize ? "" : String(base + i);
     currentLabel = count > 1 ? `Image ${i + 1}/${count}` : "";
     await generateOne(buildBody(el.positive.value, el.negative.value, seed));
@@ -1133,6 +1151,34 @@ el.connSelect.addEventListener("change", async () => {
     });
   } catch {}
   setTimeout(refreshHealth, 1500);
+});
+
+// ---- Cancel queue button ----
+el.cancelQueue.addEventListener("click", async () => {
+  el.cancelQueue.disabled = true;
+  try {
+    const r = await fetch("/api/cancel", { method: "POST" });
+    if (!r.ok) throw new Error();
+    // Cleared/pending jobs emit no further events — settle anything in-flight locally.
+    for (const [, job] of batchJobs) {
+      if (!job.completed) {
+        job.completed = true;
+        setItemStatus(job.item, "annullato", "error");
+      }
+    }
+    batchJobs.clear();
+    batchActive = 0;
+    updateRunButton();
+    if (rendering) {
+      stopRequested = true;
+      renderStepDone(); // unstick the in-flight single render
+    }
+    updateQueueStatus(0);
+    toast("Coda annullata");
+  } catch {
+    toast("Annullamento fallito");
+  }
+  el.cancelQueue.disabled = false;
 });
 
 // ---- Free VRAM button ----

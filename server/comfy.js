@@ -89,6 +89,16 @@ export class ComfyClient {
     await fetch(`${this.base}/interrupt`, { method: "POST" });
   }
 
+  // Drop all pending prompts from ComfyUI's queue (does not stop the one already running).
+  async clearQueue() {
+    await fetch(`${this.base}/queue`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ clear: true }),
+      signal: AbortSignal.timeout(8000),
+    });
+  }
+
   // Ask ComfyUI to unload models and free VRAM (no restart needed).
   async free() {
     await fetch(`${this.base}/free`, {

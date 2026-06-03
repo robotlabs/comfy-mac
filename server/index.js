@@ -74,6 +74,9 @@ function broadcast(obj) {
 // Per-prompt context (where to save on this Mac), keyed by ComfyUI prompt id.
 const pending = new Map();
 
+// Latest queue depth reported by ComfyUI (running + pending). Surfaced via /api/health.
+let queueRemaining = 0;
+
 // Files this app saved on the Mac this session — only these may be deleted.
 const savedPaths = new Set();
 
@@ -156,7 +159,8 @@ comfy.onMessage((msg) => {
       pending.delete(data.prompt_id);
       break;
     case "status":
-      broadcast({ type: "status", queue: data.status?.exec_info?.queue_remaining ?? 0 });
+      queueRemaining = data.status?.exec_info?.queue_remaining ?? 0;
+      broadcast({ type: "status", queue: queueRemaining });
       break;
   }
 });
@@ -226,6 +230,7 @@ app.get("/api/health", async (req, res) => {
       hostLabel: hosts[activeHostIndex]?.label,
       comfyui: stats.system?.comfyui_version,
       gpu: gpu ? { name: gpu.name, vramTotal: gpu.vram_total, vramFree: gpu.vram_free } : null,
+      queue: queueRemaining,
     });
   } catch (e) {
     res.json({ ok: false, connected: false, hostLabel: hosts[activeHostIndex]?.label, error: String(e.message || e) });
@@ -322,6 +327,18 @@ app.post("/api/delete", async (req, res) => {
 app.post("/api/interrupt", async (req, res) => {
   try {
     await comfy.interrupt();
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(502).json({ error: String(e.message || e) });
+  }
+});
+
+// Cancel everything on ComfyUI: drop pending prompts + stop the one running.
+app.post("/api/cancel", async (req, res) => {
+  try {
+    await comfy.clearQueue();
+    await comfy.interrupt();
+    queueRemaining = 0;
     res.json({ ok: true });
   } catch (e) {
     res.status(502).json({ error: String(e.message || e) });
