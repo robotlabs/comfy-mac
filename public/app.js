@@ -570,12 +570,13 @@ function handleEvent(msg) {
   }
 }
 
-// Show "⧗ N in coda" (running + pending on ComfyUI) and the cancel button; hide both at 0.
+// Always show "⧗ N in coda" (running + pending on ComfyUI); highlight + show the
+// cancel button only when there's actually something queued.
 function updateQueueStatus(n) {
-  const on = n > 0;
-  el.queueStatus.textContent = on ? `⧗ ${n} in coda` : "";
-  el.queueStatus.classList.toggle("hidden", !on);
-  el.cancelQueue.classList.toggle("hidden", !on);
+  el.queueStatus.textContent = `⧗ ${n} in coda`;
+  el.queueStatus.classList.remove("hidden");
+  el.queueStatus.classList.toggle("busy", n > 0);
+  el.cancelQueue.classList.toggle("hidden", n <= 0);
 }
 
 // ---- Generate ----
