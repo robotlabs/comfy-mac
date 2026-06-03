@@ -232,9 +232,9 @@
         </div>
 
         <div class="history-bar">
-          <button type="button" id="loadRecent" class="ghost small" title="Scarica le ultime render fatte sul PC (utile dopo un batch lanciato mentre il Mac era chiuso)">⟳ Recupera ultimi</button>
-          <input type="number" id="recentN" min="1" max="50" value="10" title="Quante render recuperare" />
-          <span class="dim">render da ComfyUI</span>
+          <span class="dim">Recupera le ultime</span>
+          <input type="number" id="recentN" min="1" max="50" value="10" title="Quante render recuperare. Se ce ne sono di meno, prende quelle che trova; se di più, si ferma a questo numero." />
+          <button type="button" id="loadRecent" class="ghost small" title="Scarica le ultime render fatte sul PC (utile dopo un batch lanciato mentre il Mac era chiuso)">⟳ render dal PC</button>
         </div>
         <div class="history" id="history"></div>
       </section>
