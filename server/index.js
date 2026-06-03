@@ -407,6 +407,42 @@ app.post("/api/free", async (req, res) => {
   }
 });
 
+// Retrieve the most recent renders straight from ComfyUI's history (on the PC).
+// Lets you recover a batch's results after the Mac was asleep/closed while it ran.
+// Note: ComfyUI's history is in-memory — it only covers renders since ComfyUI last started.
+app.get("/api/history", async (req, res) => {
+  try {
+    const limit = Math.max(1, Math.min(50, parseInt(req.query.limit) || 10));
+    const r = await fetch(`${comfy.base}/history?max_items=${limit}`, { signal: AbortSignal.timeout(8000) });
+    if (!r.ok) throw new Error(`ComfyUI /history returned ${r.status}`);
+    const hist = await r.json();
+    const items = [];
+    for (const [promptId, entry] of Object.entries(hist)) {
+      let isVideo = false;
+      const images = [];
+      for (const node of Object.values(entry.outputs || {})) {
+        for (const im of node.images || []) {
+          if (/\.(mp4|webm|mov|gif)$/i.test(im.filename || "")) isVideo = true;
+          images.push(
+            "/api/image?" +
+              new URLSearchParams({
+                filename: im.filename,
+                subfolder: im.subfolder ?? "",
+                type: im.type ?? "output",
+                v: promptId, // cache-bust: ComfyUI recycles filenames after its output folder is cleared
+              }),
+          );
+        }
+      }
+      if (images.length) items.push({ promptId, images, isVideo });
+    }
+    items.reverse(); // newest first
+    res.json({ items });
+  } catch (e) {
+    res.status(502).json({ error: String(e.message || e) });
+  }
+});
+
 // Receive an image from the Mac (raw bytes) and forward it to ComfyUI's input folder.
 app.post("/api/upload", express.raw({ type: () => true, limit: "30mb" }), async (req, res) => {
   try {

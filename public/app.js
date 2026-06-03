@@ -71,6 +71,8 @@ const el = {
   download: $("download"),
   openFull: $("openFull"),
   history: $("history"),
+  loadRecent: $("loadRecent"),
+  recentN: $("recentN"),
   dot: $("dot"),
   statusText: $("statusText"),
   connSelect: $("connSelect"),
@@ -815,9 +817,42 @@ function addHistory(url, meta, seed, params, isVideo) {
 
   wrap.append(media, del);
   el.history.prepend(wrap);
-  while (el.history.children.length > 12) el.history.lastChild.remove();
+  while (el.history.children.length > 50) el.history.lastChild.remove();
   return wrap;
 }
+
+// Pull the last N renders straight from ComfyUI (the PC) and drop them into the
+// history strip. Recovers a batch's results when the Mac was asleep during the run.
+async function loadRecentFromComfy() {
+  const n = Math.max(1, Math.min(50, parseInt(el.recentN.value) || 10));
+  el.loadRecent.disabled = true;
+  const label = el.loadRecent.textContent;
+  el.loadRecent.textContent = "Recupero…";
+  try {
+    const r = await fetch("/api/history?limit=" + n);
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.error || "retrieve failed");
+    if (!data.items || !data.items.length) {
+      toast("Nessuna render trovata su ComfyUI (PC spento o ComfyUI riavviato?)");
+      return;
+    }
+    // Server returns newest-first; addHistory prepends, so add oldest-first to keep newest on top.
+    let newest = null;
+    for (let i = data.items.length - 1; i >= 0; i--) {
+      const it = data.items[i];
+      newest = addHistory(it.images[0], "dal PC", null, null, it.isVideo);
+      imageWraps.set(it.promptId, newest);
+    }
+    if (newest) view(newest);
+    toast(`Recuperate ${data.items.length} render dal PC`);
+  } catch (e) {
+    toast("Recupero fallito: " + (e.message || e));
+  } finally {
+    el.loadRecent.disabled = false;
+    el.loadRecent.textContent = label;
+  }
+}
+el.loadRecent.addEventListener("click", loadRecentFromComfy);
 
 async function deleteThumb(wrap) {
   const path = wrap._path;

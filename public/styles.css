@@ -405,6 +405,9 @@ button { font-family: var(--font); }
 .meta { color: var(--dim); font-size: 13px; font-variant-numeric: tabular-nums; }
 .actions { display: flex; gap: 8px; }
 
+.history-bar { display: flex; align-items: center; gap: 8px; padding-top: 2px; }
+.history-bar input[type="number"] { width: 64px; text-align: center; padding: 7px 8px; }
+.history-bar .dim { color: var(--dim); font-size: 12px; }
 .history { display: flex; gap: 10px; flex-wrap: wrap; padding-top: 2px; }
 .thumb { position: relative; width: 60px; height: 60px; }
 .thumb img {
