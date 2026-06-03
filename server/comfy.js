@@ -99,6 +99,16 @@ export class ComfyClient {
     });
   }
 
+  // Authoritative current queue depth (running + pending), polled straight from ComfyUI.
+  // More reliable than the websocket "status" count, which goes stale if we miss events
+  // (e.g. the Mac slept mid-batch).
+  async queueCount() {
+    const res = await fetch(`${this.base}/queue`, { signal: AbortSignal.timeout(4000) });
+    if (!res.ok) throw new Error(`queue ${res.status}`);
+    const d = await res.json();
+    return (d.queue_running?.length || 0) + (d.queue_pending?.length || 0);
+  }
+
   // Ask ComfyUI to unload models and free VRAM (no restart needed).
   async free() {
     await fetch(`${this.base}/free`, {

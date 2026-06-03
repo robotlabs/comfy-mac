@@ -224,6 +224,9 @@ app.get("/api/health", async (req, res) => {
   try {
     const stats = await comfy.systemStats();
     const gpu = stats.devices?.[0];
+    // Read the real queue depth from ComfyUI (authoritative); fall back to the
+    // last websocket-reported value if the extra call fails.
+    try { queueRemaining = await comfy.queueCount(); } catch {}
     res.json({
       ok: true,
       connected: comfy.connected,
