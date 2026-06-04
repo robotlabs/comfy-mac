@@ -91,6 +91,7 @@ let currentUrl = null;
 let pendingParams = null;
 let rendering = false;
 let stopRequested = false; // set by "Annulla" to break out of a multi-image single render
+let lastProgressAt = 0; // ms of last event for the in-flight render (watchdog)
 let currentLabel = "";
 let currentWrap = null; // the result currently shown in the canvas
 let onRenderDone = null; // resolves when the in-flight single render completes
@@ -487,10 +488,13 @@ function handleEvent(msg) {
         if (job.item._thumb && !job.completed) job.item._thumb.innerHTML = '<div class="spinner"></div>';
         break;
       }
-      if (msg.promptId === currentPromptId && msg.max) {
-        el.bar.style.width = (msg.value / msg.max) * 100 + "%";
-        const p = currentLabel ? currentLabel + " · " : "";
-        el.progressText.textContent = `${p}Step ${msg.value} / ${msg.max}`;
+      if (msg.promptId === currentPromptId) {
+        lastProgressAt = Date.now();
+        if (msg.max) {
+          el.bar.style.width = (msg.value / msg.max) * 100 + "%";
+          const p = currentLabel ? currentLabel + " · " : "";
+          el.progressText.textContent = `${p}Step ${msg.value} / ${msg.max}`;
+        }
       }
       break;
     }
@@ -503,8 +507,10 @@ function handleEvent(msg) {
         }
         break;
       }
-      if (msg.promptId === currentPromptId)
+      if (msg.promptId === currentPromptId) {
+        lastProgressAt = Date.now();
         el.progressText.textContent = (currentLabel ? currentLabel + " · " : "") + "Rendering…";
+      }
       break;
     }
     case "image": {
@@ -700,6 +706,7 @@ function generateOne(body) {
         currentPromptId = data.promptId;
         lastPromptId = data.promptId;
         lastSeed = data.seed;
+        lastProgressAt = Date.now();
         pendingParams = paramsFrom(body, data.seed);
       } catch (e) {
         toast(String(e.message || e));
@@ -1211,8 +1218,38 @@ function toast(text) {
   toast._t = setTimeout(() => el.toast.classList.add("hidden"), 5000);
 }
 
+// ---- Render watchdog ----
+// If the in-flight render goes silent (missed completion event from a websocket/SSE
+// blip, ComfyUI restart, or the Mac sleeping), reconcile against ComfyUI directly so
+// the UI never stays frozen on "Loading model…".
+let watchdogBusy = false;
+async function checkInflightRender() {
+  if (!rendering || !currentPromptId || watchdogBusy) return;
+  if (Date.now() - lastProgressAt < 20000) return; // recent activity — leave it alone
+  watchdogBusy = true;
+  const id = currentPromptId;
+  try {
+    const d = await (await fetch("/api/prompt-status?id=" + encodeURIComponent(id))).json();
+    if (id !== currentPromptId) return; // already moved on
+    if (d.state === "done" && d.images?.length) {
+      showImage(d.images[0], id, d.isVideo); // recovered the missed result
+      renderStepDone();
+    } else if (d.state === "missing") {
+      toast("Render perso (ComfyUI riavviato o errore) — sblocco la UI");
+      renderStepDone();
+    } else if (/queued|loading|caricamento/i.test(el.progressText.textContent)) {
+      el.progressText.textContent = "Loading model… (ancora in corso)"; // confirmed alive, keep waiting
+    }
+  } catch {
+    // transient — retry next tick
+  } finally {
+    watchdogBusy = false;
+  }
+}
+
 init();
 renderQueue();
 updateRunButton();
 connectStream();
 setInterval(refreshHealth, 15000);
+setInterval(checkInflightRender, 8000);

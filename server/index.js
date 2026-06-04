@@ -463,6 +463,44 @@ app.get("/api/history", async (req, res) => {
   }
 });
 
+// Status of one prompt — the frontend watchdog uses this to recover when a
+// completion event was missed (websocket/SSE blip, ComfyUI restart, Mac asleep),
+// so the UI never stays frozen on "Loading model…".
+app.get("/api/prompt-status", async (req, res) => {
+  const id = String(req.query.id || "");
+  if (!id) return res.status(400).json({ error: "id required" });
+  try {
+    // Still queued or running?
+    const q = await (await fetch(`${comfy.base}/queue`, { signal: AbortSignal.timeout(4000) })).json();
+    const live = [...(q.queue_running || []), ...(q.queue_pending || [])].some((e) => e?.[1] === id);
+    if (live) return res.json({ state: "running" });
+
+    // Finished — look it up in history.
+    let entry = null;
+    try {
+      const hr = await fetch(`${comfy.base}/history/${id}`, { signal: AbortSignal.timeout(4000) });
+      if (hr.ok) entry = (await hr.json())?.[id] || null;
+    } catch {}
+    if (entry) {
+      let isVideo = false;
+      const images = [];
+      for (const node of Object.values(entry.outputs || {})) {
+        for (const im of node.images || []) {
+          if (/\.(mp4|webm|mov|gif)$/i.test(im.filename || "")) isVideo = true;
+          images.push(
+            "/api/image?" +
+              new URLSearchParams({ filename: im.filename, subfolder: im.subfolder ?? "", type: im.type ?? "output", v: id }),
+          );
+        }
+      }
+      if (images.length) return res.json({ state: "done", images, isVideo });
+    }
+    return res.json({ state: "missing" });
+  } catch (e) {
+    res.status(502).json({ error: String(e.message || e) });
+  }
+});
+
 // Receive an image from the Mac (raw bytes) and forward it to ComfyUI's input folder.
 app.post("/api/upload", express.raw({ type: () => true, limit: "30mb" }), async (req, res) => {
   try {
