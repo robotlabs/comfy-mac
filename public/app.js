@@ -24,6 +24,7 @@ const el = {
   negative: $("negative"),
   negativeField: $("negativeField"),
   cfgField: $("cfgField"),
+  stepsField: $("stepsField"),
   seed: $("seed"),
   randomBtn: $("randomBtn"),
   count: $("count"),
@@ -265,6 +266,7 @@ function renderToggles() {
     cb.addEventListener("change", () => {
       toggleState[t.key] = cb.checked;
       persist();
+      updateConditionalControls();
     });
     const span = document.createElement("span");
     span.textContent = t.label;
@@ -280,7 +282,6 @@ function applyWorkflow(id, applyDefaults) {
   el.workflow.value = currentWorkflow.id;
 
   const has = currentWorkflow.has || {};
-  el.cfgField.classList.toggle("hidden", !has.cfg);
   el.samplerField.classList.toggle("hidden", !has.sampler);
   el.schedulerField.classList.toggle("hidden", !has.scheduler);
   // Denoise only does something when there's an input image to partially preserve
@@ -312,32 +313,37 @@ function applyWorkflow(id, applyDefaults) {
     if (d.fps != null) el.fps.value = d.fps;
     syncPreset();
   }
-  updateNegativeVisibility();
+  updateConditionalControls();
   syncDenoiseRange();
   persist();
 }
 
-// The negative prompt only affects the image with classifier-free guidance (cfg > 1).
-// Turbo/distilled models run at cfg 1, where the negative is mathematically ignored —
-// so hide the field there (it reappears automatically if cfg goes above 1).
-function negativePromptWorks() {
-  const has = currentWorkflow?.has || {};
-  if (!has.negative) return false;
-  if (has.cfg) {
-    const cfg = parseFloat(el.cfg.value);
-    if (!isNaN(cfg) && cfg <= 1) return false;
+// Fields pinned by an enabled toggle (e.g. "4-step fast mode" forces steps/cfg via the
+// workflow's switch nodes, so the user's values are ignored) — listed in toggle.overrides.
+function overriddenFields() {
+  const set = new Set();
+  for (const t of currentWorkflow?.toggles || []) {
+    if ((toggleState[t.key] ?? t.default) && Array.isArray(t.overrides)) t.overrides.forEach((f) => set.add(f));
   }
-  return true;
+  return set;
 }
-function updateNegativeVisibility() {
-  const show = negativePromptWorks();
-  el.negativeField.classList.toggle("hidden", !show);
-  el.positiveLabel.textContent = show ? "Positive prompt" : "Prompt";
+// Show a control only when editing it actually changes the render:
+// - negative: only with classifier-free guidance (cfg > 1), and not pinned by a toggle.
+// - cfg / steps: hidden when a toggle (fast mode) overrides them.
+function updateConditionalControls() {
+  const has = currentWorkflow?.has || {};
+  const ov = overriddenFields();
+  const cfg = parseFloat(el.cfg.value);
+  const negOk = !!has.negative && !(has.cfg && !isNaN(cfg) && cfg <= 1) && !ov.has("negative");
+  el.negativeField.classList.toggle("hidden", !negOk);
+  el.positiveLabel.textContent = negOk ? "Positive prompt" : "Prompt";
+  el.cfgField.classList.toggle("hidden", !has.cfg || ov.has("cfg"));
+  el.stepsField.classList.toggle("hidden", ov.has("steps"));
 }
 
 el.modeSelect.addEventListener("change", () => setMode(el.modeSelect.value));
 el.workflow.addEventListener("change", () => applyWorkflow(el.workflow.value, true));
-el.cfg.addEventListener("input", updateNegativeVisibility);
+el.cfg.addEventListener("input", updateConditionalControls);
 
 // ---- Input image slots (img2img / img2vid / text2img-img) ----
 async function uploadImageFile(slot, file) {
@@ -448,7 +454,7 @@ async function init() {
   } catch {}
   syncPreset();
   syncDenoiseRange();
-  updateNegativeVisibility();
+  updateConditionalControls();
   refreshHealth();
 }
 
