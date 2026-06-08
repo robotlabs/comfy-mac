@@ -280,8 +280,6 @@ function applyWorkflow(id, applyDefaults) {
   el.workflow.value = currentWorkflow.id;
 
   const has = currentWorkflow.has || {};
-  el.negativeField.classList.toggle("hidden", !has.negative);
-  el.positiveLabel.textContent = has.negative ? "Positive prompt" : "Prompt";
   el.cfgField.classList.toggle("hidden", !has.cfg);
   el.samplerField.classList.toggle("hidden", !has.sampler);
   el.schedulerField.classList.toggle("hidden", !has.scheduler);
@@ -314,12 +312,32 @@ function applyWorkflow(id, applyDefaults) {
     if (d.fps != null) el.fps.value = d.fps;
     syncPreset();
   }
+  updateNegativeVisibility();
   syncDenoiseRange();
   persist();
 }
 
+// The negative prompt only affects the image with classifier-free guidance (cfg > 1).
+// Turbo/distilled models run at cfg 1, where the negative is mathematically ignored —
+// so hide the field there (it reappears automatically if cfg goes above 1).
+function negativePromptWorks() {
+  const has = currentWorkflow?.has || {};
+  if (!has.negative) return false;
+  if (has.cfg) {
+    const cfg = parseFloat(el.cfg.value);
+    if (!isNaN(cfg) && cfg <= 1) return false;
+  }
+  return true;
+}
+function updateNegativeVisibility() {
+  const show = negativePromptWorks();
+  el.negativeField.classList.toggle("hidden", !show);
+  el.positiveLabel.textContent = show ? "Positive prompt" : "Prompt";
+}
+
 el.modeSelect.addEventListener("change", () => setMode(el.modeSelect.value));
 el.workflow.addEventListener("change", () => applyWorkflow(el.workflow.value, true));
+el.cfg.addEventListener("input", updateNegativeVisibility);
 
 // ---- Input image slots (img2img / img2vid / text2img-img) ----
 async function uploadImageFile(slot, file) {
@@ -430,6 +448,7 @@ async function init() {
   } catch {}
   syncPreset();
   syncDenoiseRange();
+  updateNegativeVisibility();
   refreshHealth();
 }
 
