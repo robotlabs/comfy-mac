@@ -323,10 +323,20 @@ function applyWorkflow(id, applyDefaults) {
 // img2img, wan) the negative is shown. cfg and steps stay visible on every workflow.
 // (Qwen "4-step fast mode" cosmetically overrides steps/cfg, but the fields are kept visible
 // on purpose — the user wants them.)
+// A "fast" Lightning toggle forces cfg to 1 via the workflow's switch nodes → negative inert.
+function fastToggleOn() {
+  for (const t of currentWorkflow?.toggles || []) {
+    if ((toggleState[t.key] ?? t.default) && t.key === "fast") return true;
+  }
+  return false;
+}
 function updateConditionalControls() {
   const has = currentWorkflow?.has || {};
   const cfg = parseFloat(el.cfg.value);
-  const negOk = !!has.negative && !(has.cfg && !isNaN(cfg) && cfg <= 1);
+  // Negative is inert when cfg <= 1 — either the workflow's own cfg, or because a fast
+  // toggle pins cfg to 1. Hide it there. cfg and steps stay visible always.
+  const negInert = (has.cfg && !isNaN(cfg) && cfg <= 1) || fastToggleOn();
+  const negOk = !!has.negative && !negInert;
   el.negativeField.classList.toggle("hidden", !negOk);
   el.positiveLabel.textContent = negOk ? "Positive prompt" : "Prompt";
   el.cfgField.classList.toggle("hidden", !has.cfg);
