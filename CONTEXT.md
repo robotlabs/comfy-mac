@@ -62,8 +62,10 @@ ComfyUI base dir `C:\Users\robOT\Documents\ComfyUI`.
 
 `server/index.js` `/api/config` exposes `has.*` flags + `toggles[].overrides`. `app.js`
 `updateConditionalControls()` + `applyWorkflow()` decide visibility:
-- **Negative prompt**: shown only when **cfg > 1**. Turbo/distilled models run at cfg 1 where
-  CFG is off and the negative is **mathematically ignored** (ComfyUI skips the uncond pass).
+- **Negative prompt**: shown only when it's effective. Hidden when inert = the workflow's
+  cfg <= 1 (turbo, e.g. z-turbo — CFG off, ComfyUI skips the uncond pass, negative ignored),
+  OR a "fast" Lightning toggle is on (Qwen 4-step reroutes cfg to 1 via switch nodes →
+  negative inert there too). Shown on Qwen (fast OFF), img2img, wan.
 - **Denoise**: shown only when there's an input image (img2img / image-edit). For pure text2img
   it's always 1.0.
 - **Steps & cfg are ALWAYS shown** (steps influence the render on every model, incl. z-turbo —
