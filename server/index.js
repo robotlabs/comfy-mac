@@ -199,7 +199,7 @@ app.get("/api/config", (req, res) => {
       defaults: w.defaults,
       defaultNegative: defaultNegative || "",
       defaultPrefix: defaultPrefix || "",
-      toggles: (w.toggles || []).map((t) => ({ key: t.key, label: t.label, default: !!t.default, overrides: t.overrides || [] })),
+      toggles: (w.toggles || []).map((t) => ({ key: t.key, label: t.label, default: !!t.default })),
       has: {
         negative: !!w.fields.negative,
         cfg: !!w.fields.cfg,

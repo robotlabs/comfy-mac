@@ -73,7 +73,7 @@
         "prefix":    { "node": "60", "field": "filename_prefix" }
       },
       "toggles": [
-        { "key": "fast", "label": "4-step fast mode (Lightning LoRA)", "node": "238:229", "field": "value", "default": false, "overrides": ["steps", "cfg", "negative"] }
+        { "key": "fast", "label": "4-step fast mode (Lightning LoRA)", "node": "238:229", "field": "value", "default": false }
       ],
       "defaults": { "steps": 50, "cfg": 4.0, "sampler": "euler", "scheduler": "simple", "width": 1080, "height": 1920 }
     },
@@ -117,7 +117,7 @@
         "prefix":    { "node": "9", "field": "filename_prefix" }
       },
       "toggles": [
-        { "key": "fast", "label": "4-step fast mode (Lightning LoRA)", "node": "170:168", "field": "value", "default": false, "overrides": ["steps", "cfg", "negative"] }
+        { "key": "fast", "label": "4-step fast mode (Lightning LoRA)", "node": "170:168", "field": "value", "default": false }
       ],
       "defaults": { "steps": 40, "cfg": 4.0, "sampler": "euler", "scheduler": "simple", "denoise": 1.0 }
     },

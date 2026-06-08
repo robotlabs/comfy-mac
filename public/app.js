@@ -318,27 +318,19 @@ function applyWorkflow(id, applyDefaults) {
   persist();
 }
 
-// Fields pinned by an enabled toggle (e.g. "4-step fast mode" forces steps/cfg via the
-// workflow's switch nodes, so the user's values are ignored) — listed in toggle.overrides.
-function overriddenFields() {
-  const set = new Set();
-  for (const t of currentWorkflow?.toggles || []) {
-    if ((toggleState[t.key] ?? t.default) && Array.isArray(t.overrides)) t.overrides.forEach((f) => set.add(f));
-  }
-  return set;
-}
-// Show a control only when editing it actually changes the render:
-// - negative: only with classifier-free guidance (cfg > 1), and not pinned by a toggle.
-// - cfg / steps: hidden when a toggle (fast mode) overrides them.
+// Hide the negative ONLY where it's truly inert: workflows whose cfg is <= 1 (turbo models,
+// e.g. z-image-turbo), where classifier-free guidance is off. Everywhere cfg > 1 (Qwen,
+// img2img, wan) the negative is shown. cfg and steps stay visible on every workflow.
+// (Qwen "4-step fast mode" cosmetically overrides steps/cfg, but the fields are kept visible
+// on purpose — the user wants them.)
 function updateConditionalControls() {
   const has = currentWorkflow?.has || {};
-  const ov = overriddenFields();
   const cfg = parseFloat(el.cfg.value);
-  const negOk = !!has.negative && !(has.cfg && !isNaN(cfg) && cfg <= 1) && !ov.has("negative");
+  const negOk = !!has.negative && !(has.cfg && !isNaN(cfg) && cfg <= 1);
   el.negativeField.classList.toggle("hidden", !negOk);
   el.positiveLabel.textContent = negOk ? "Positive prompt" : "Prompt";
-  el.cfgField.classList.toggle("hidden", !has.cfg || ov.has("cfg"));
-  el.stepsField.classList.toggle("hidden", ov.has("steps"));
+  el.cfgField.classList.toggle("hidden", !has.cfg);
+  el.stepsField.classList.remove("hidden");
 }
 
 el.modeSelect.addEventListener("change", () => setMode(el.modeSelect.value));
