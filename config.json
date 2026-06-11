@@ -155,11 +155,14 @@
         "seed":       [ { "node": "139", "field": "seed" }, { "node": "140", "field": "seed" } ],
         "cfg":        [ { "node": "139", "field": "cfg" }, { "node": "140", "field": "cfg" } ],
         "steps":      { "node": "150", "field": "value" },
+        "stepsBoundary": { "node": "151", "field": "value" },
         "frames":     { "node": "156", "field": "num_frames" },
         "fps":        { "node": "116", "field": "fps" },
         "prefix":     { "node": "117", "field": "filename_prefix" }
       },
-      "defaults": { "resolution": 320, "steps": 20, "cfg": 5.0, "frames": 65, "fps": 32 }
+      "defaults": { "resolution": 320, "steps": 20, "cfg": 5.0, "frames": 65, "fps": 32, "minSteps": 15, "stepsBoundaryRatio": 0.65 },
+      "exportFramesNode": "158",
+      "videoSaveNode": "117"
     }
   ]
 }

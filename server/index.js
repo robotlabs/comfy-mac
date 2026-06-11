@@ -199,6 +199,7 @@ app.get("/api/config", (req, res) => {
       defaults: w.defaults,
       defaultNegative: defaultNegative || "",
       defaultPrefix: defaultPrefix || "",
+      exportChoice: !!w.exportFramesNode,
       toggles: (w.toggles || []).map((t) => ({ key: t.key, label: t.label, default: !!t.default })),
       has: {
         negative: !!w.fields.negative,
@@ -286,6 +287,13 @@ app.post("/api/generate", async (req, res) => {
     setField(graph, f.seed, usedSeed);
 
     if (steps) setField(graph, f.steps, Math.floor(Number(steps)));
+    // WAN 2.2 splits steps between a high-noise and a low-noise sampler at a boundary; keep the
+    // boundary < steps so neither sampler ends up with 0 steps (which crashes the WAN node).
+    if (f.stepsBoundary && steps) {
+      const st = Math.floor(Number(steps));
+      const ratio = wf.defaults?.stepsBoundaryRatio || 0.65;
+      setField(graph, f.stepsBoundary, Math.max(1, Math.min(st - 1, Math.round(st * ratio))));
+    }
     if (cfg !== undefined && cfg !== "") setField(graph, f.cfg, Number(cfg));
     if (sampler) setField(graph, f.sampler, String(sampler));
     if (scheduler) setField(graph, f.scheduler, String(scheduler));
@@ -300,6 +308,18 @@ app.post("/api/generate", async (req, res) => {
     for (const t of wf.toggles || []) {
       const v = req.body.toggles?.[t.key];
       setField(graph, { node: t.node, field: t.field }, v === undefined ? !!t.default : !!v);
+    }
+
+    // Export as a PNG frame sequence (lossless) instead of an mp4: drop the video save node
+    // and save the raw decoded frames as PNG, so you get clean frames (e.g. the last one).
+    if (req.body.exportFormat === "png" && wf.exportFramesNode) {
+      if (wf.videoSaveNode) delete graph[wf.videoSaveNode];
+      const pfx = (prefix && String(prefix).trim()) || "frames/ComfyUI";
+      graph["__pngseq"] = {
+        class_type: "SaveImage",
+        inputs: { filename_prefix: pfx, images: [String(wf.exportFramesNode), 0] },
+        _meta: { title: "PNG sequence" },
+      };
     }
 
     const result = await comfy.queue(graph);

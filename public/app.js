@@ -38,6 +38,8 @@ const el = {
   schedulerField: $("schedulerField"),
   denoiseField: $("denoiseField"),
   prefix: $("prefix"),
+  exportFormat: $("exportFormat"),
+  exportFormatField: $("exportFormatField"),
   saveDir: $("saveDir"),
   steps: $("steps"),
   cfg: $("cfg"),
@@ -136,6 +138,7 @@ if (saved.denoise) el.denoise.value = saved.denoise;
 if (saved.resolution) el.resolution.value = saved.resolution;
 if (saved.frames) el.frames.value = saved.frames;
 if (saved.fps) el.fps.value = saved.fps;
+if (saved.exportFormat) el.exportFormat.value = saved.exportFormat;
 if (saved.randomize === false) setRandomize(false);
 queue = (saved.queue || []).map((q) => ({ positive: q.positive, negative: q.negative }));
 
@@ -163,6 +166,7 @@ function persist() {
       mode: currentMode,
       workflow: currentWorkflow?.id,
       toggles: toggleState,
+      exportFormat: el.exportFormat.value,
       queue: queue.map((q) => ({ positive: q.positive, negative: q.negative })),
     }),
   );
@@ -170,8 +174,14 @@ function persist() {
 [
   el.positive, el.negative, el.seed, el.prefix, el.saveDir, el.width, el.height,
   el.steps, el.cfg, el.count, el.sampler, el.scheduler, el.denoise,
-  el.resolution, el.frames, el.fps,
+  el.resolution, el.frames, el.fps, el.exportFormat,
 ].forEach((n) => n.addEventListener(n.tagName === "SELECT" ? "change" : "input", persist));
+
+// Enforce the per-workflow minimum steps (WAN >= 15) when the user types a value.
+el.steps.addEventListener("change", () => {
+  const m = parseInt(el.steps.min) || 1;
+  if ((parseInt(el.steps.value) || 0) < m) { el.steps.value = m; persist(); }
+});
 
 // ---- Denoise slider <-> number ----
 function syncDenoiseRange() {
@@ -296,6 +306,11 @@ function applyWorkflow(id, applyDefaults) {
   el.resolutionField.classList.toggle("hidden", !has.resolution);
   el.framesField.classList.toggle("hidden", !has.frames);
   el.fpsField.classList.toggle("hidden", !has.fps);
+  // Export format chooser (mp4 / PNG sequence) — only for workflows that support it (img2vid).
+  el.exportFormatField.classList.toggle("hidden", !currentWorkflow.exportChoice);
+  // Per-workflow minimum steps (WAN needs >= 15 or its high/low-noise split breaks).
+  el.steps.min = currentWorkflow.defaults?.minSteps || 1;
+  if ((parseInt(el.steps.value) || 0) < el.steps.min) el.steps.value = el.steps.min;
   renderToggles();
 
   if (applyDefaults) {
@@ -634,6 +649,7 @@ function buildBody(positive, negative, seed) {
     frames: el.frames.value,
     fps: el.fps.value,
     toggles: { ...toggleState },
+    exportFormat: el.exportFormat.value,
   };
 }
 
