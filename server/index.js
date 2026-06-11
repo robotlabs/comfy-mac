@@ -307,14 +307,19 @@ app.post("/api/generate", async (req, res) => {
     if (frames) setField(graph, f.frames, Math.floor(Number(frames)));
     if (fps) setField(graph, f.fps, Number(fps));
 
-    // VRAM-safe auto-engage for high-res video: at/above a resolution threshold, swap more
-    // model blocks to system RAM and tile the VAE decode (the usual OOM point). Low-res test
-    // renders stay fast (rule doesn't fire). All knobs live in config (wf.vramSafe).
+    // VRAM-safe auto-engage for high-res video, split by cost:
+    //  - VAE tiling (tilingThreshold): cheap on time, big OOM help at the decode — engage early.
+    //  - block swap (swapThreshold): big OOM help during sampling but a heavy SPEED cost (every
+    //    swapped block is offloaded/reloaded each step) — engage only at genuinely high res.
+    // Low/mid-res renders (e.g. 480) keep the template's light block_swap = fast.
     if (wf.vramSafe && resolution) {
       const vs = wf.vramSafe;
-      if (Math.floor(Number(resolution)) >= (vs.resThreshold || 400)) {
-        if (vs.blockSwapNode) setField(graph, { node: vs.blockSwapNode, field: "blocks_to_swap" }, vs.blocksHigh || 40);
-        if (vs.vaeTilingNode) setField(graph, { node: vs.vaeTilingNode, field: "enable_vae_tiling" }, true);
+      const r = Math.floor(Number(resolution));
+      if (vs.vaeTilingNode && r >= (vs.tilingThreshold || 400)) {
+        setField(graph, { node: vs.vaeTilingNode, field: "enable_vae_tiling" }, true);
+      }
+      if (vs.blockSwapNode && r >= (vs.swapThreshold || 640)) {
+        setField(graph, { node: vs.blockSwapNode, field: "blocks_to_swap" }, vs.blocksHigh || 30);
       }
     }
 
