@@ -561,6 +561,9 @@ function handleEvent(msg) {
       // The server caches that URL for a year, so the browser would serve the STALE image.
       // Append the unique promptId so every render gets a distinct, never-before-cached URL.
       const url = bustCache(msg.images[0], msg.promptId);
+      // The "mp4 + last frame PNG" export emits a secondary still alongside the mp4 — it's
+      // saved on the Mac (via the "saved" event) but must not replace the video in the viewer.
+      if (msg.secondary) break;
       const job = batchJobs.get(msg.promptId);
       if (job) {
         completeJob(job, url, msg.isVideo);

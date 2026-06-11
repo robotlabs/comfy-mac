@@ -146,7 +146,10 @@ comfy.onMessage((msg) => {
               type: img.type ?? "output",
             }),
         );
-        broadcast({ type: "image", images, isVideo, promptId: data.prompt_id });
+        // The "mp4 + last frame PNG" export adds a secondary SaveImage node; save its PNG
+        // but don't let it replace the mp4 in the viewer.
+        const secondary = data.node === "__lastframe_save";
+        broadcast({ type: "image", images, isVideo, promptId: data.prompt_id, secondary });
         saveImages(data.prompt_id, items);
       }
       break;
@@ -304,22 +307,52 @@ app.post("/api/generate", async (req, res) => {
     if (frames) setField(graph, f.frames, Math.floor(Number(frames)));
     if (fps) setField(graph, f.fps, Number(fps));
 
+    // VRAM-safe auto-engage for high-res video: at/above a resolution threshold, swap more
+    // model blocks to system RAM and tile the VAE decode (the usual OOM point). Low-res test
+    // renders stay fast (rule doesn't fire). All knobs live in config (wf.vramSafe).
+    if (wf.vramSafe && resolution) {
+      const vs = wf.vramSafe;
+      if (Math.floor(Number(resolution)) >= (vs.resThreshold || 400)) {
+        if (vs.blockSwapNode) setField(graph, { node: vs.blockSwapNode, field: "blocks_to_swap" }, vs.blocksHigh || 40);
+        if (vs.vaeTilingNode) setField(graph, { node: vs.vaeTilingNode, field: "enable_vae_tiling" }, true);
+      }
+    }
+
     // Boolean toggles (e.g. Qwen's 4-step LoRA switch).
     for (const t of wf.toggles || []) {
       const v = req.body.toggles?.[t.key];
       setField(graph, { node: t.node, field: t.field }, v === undefined ? !!t.default : !!v);
     }
 
-    // Export as a PNG frame sequence (lossless) instead of an mp4: drop the video save node
-    // and save the raw decoded frames as PNG, so you get clean frames (e.g. the last one).
-    if (req.body.exportFormat === "png" && wf.exportFramesNode) {
-      if (wf.videoSaveNode) delete graph[wf.videoSaveNode];
+    // Export options for video workflows (use the clean decoded frames, node `exportFramesNode`):
+    //  - "png":     drop the mp4, save the full raw frame sequence as lossless PNG.
+    //  - "mp4+png": keep the mp4, ALSO save just the last decoded frame as a lossless PNG —
+    //               so you can chain segments (last frame → next i2v input) without the quality
+    //               loss of extracting a frame from the compressed video.
+    const ef = req.body.exportFormat;
+    if ((ef === "png" || ef === "mp4+png") && wf.exportFramesNode) {
       const pfx = (prefix && String(prefix).trim()) || "frames/ComfyUI";
-      graph["__pngseq"] = {
-        class_type: "SaveImage",
-        inputs: { filename_prefix: pfx, images: [String(wf.exportFramesNode), 0] },
-        _meta: { title: "PNG sequence" },
-      };
+      if (ef === "png") {
+        if (wf.videoSaveNode) delete graph[wf.videoSaveNode];
+        graph["__pngseq"] = {
+          class_type: "SaveImage",
+          inputs: { filename_prefix: pfx, images: [String(wf.exportFramesNode), 0] },
+          _meta: { title: "PNG sequence" },
+        };
+      } else {
+        // Keep the mp4 (videoSaveNode untouched) and add a last-frame PNG branch.
+        const nFrames = Math.floor(Number(frames) || wf.defaults?.frames || 1);
+        graph["__lastframe_pick"] = {
+          class_type: "ImageFromBatch",
+          inputs: { image: [String(wf.exportFramesNode), 0], batch_index: Math.max(0, nFrames - 1), length: 1 },
+          _meta: { title: "Last frame" },
+        };
+        graph["__lastframe_save"] = {
+          class_type: "SaveImage",
+          inputs: { filename_prefix: `${pfx}_lastframe`, images: ["__lastframe_pick", 0] },
+          _meta: { title: "Last frame PNG" },
+        };
+      }
     }
 
     const result = await comfy.queue(graph);

@@ -5,10 +5,49 @@ Local web app on the Mac that drives **ComfyUI** on a separate Windows GPU PC
 
 ## Current state (end of session)
 
-- **git**: branch `main` @ `ed8b352`. Backup branch `backup-session-changes` (@ `32b54c9`)
-  holds the work before the last 2 UI commits, in case a rollback is ever needed.
-- **server**: started with `npm start`; was connected to **ComfyUI 0.24.1** via Tailscale.
-- **The tool works.** Save-to-folder and live step progress are fine (verified with a real render).
+- **git**: branch `main`. Backup branch `backup-session-changes` holds an older pre-UI state.
+- **server**: run with `npm start` → http://localhost:4242; connects to **ComfyUI 0.24.1**.
+  Restart the server after any `server/*.js` or `config.json` edit (the running process caches
+  the old code — a render with `injected nodes: []` in ComfyUI history means stale server).
+- **The tool works.** Save-to-folder, live progress, queue counter, history retrieval all verified.
+
+## Latest session — WAN video work (export + fps + VRAM)
+
+- **Export select** on `wan-img2vid` (`#exportFormat`) now has 3 options:
+  `mp4` · `mp4+png` (mp4 + last frame as lossless PNG) · `png` (full frame sequence).
+  Server-side injection in `/api/generate` (server/index.js ~line 315):
+  - `png` → delete `videoSaveNode` (117), add `__pngseq` SaveImage on `exportFramesNode` (158).
+  - `mp4+png` → keep mp4, add `__lastframe_pick` (`ImageFromBatch`, batch_index = frames-1,
+    length 1) + `__lastframe_save` (SaveImage, prefix `<prefix>_lastframe`). The `executed`
+    handler tags that node's broadcast `secondary:true` so the PNG is saved but does NOT
+    replace the mp4 in the viewer (app.js `case "image"` breaks early on `msg.secondary`).
+- **WAN fps / RIFE — the slow-motion gotcha (important):** the workflow runs **WAN 2.2 i2v 14B**
+  (nodes 131/132), native **16 fps**, with a **RIFE VFI ×2** (node 115) that doubles frames
+  before `CreateVideo` (116). So the mp4 must be **32 fps** to play real-time. Setting fps=16
+  → half-speed slow motion. **Always fps=32.** Duration ≈ `frames/16`; use 4n+1 frame counts
+  (17≈1s, 25≈1.5s, 33≈2s, 49≈3s, 65≈4s). (The user hit this twice — confirmed via ffprobe:
+  the mp4 was 32/1 fps, 65 frames, 2.03s = correct when fps=32.)
+- **Face deformation** is a **resolution** problem (240 short side = tiny face). Steps help a
+  little and cost ~no VRAM (time only); **CFG ~5, don't raise** (worsens faces). The lever is
+  resolution (480+ for prod).
+- **VRAM-safe auto** added: `config.json → wan-img2vid.vramSafe`
+  `{ resThreshold:400, blockSwapNode:"128", blocksHigh:40, vaeTilingNode:"158" }`. Server
+  (after setting resolution) auto-sets `blocks_to_swap=40` + `enable_vae_tiling=true` when
+  resolution ≥ 400, so 480/720 prod renders don't OOM on 12 GB; test renders (240/320) stay
+  fast. Dial `blocksHigh` down (~30) for more speed if not OOMing.
+- WAN node map (template `server/workflows/wan-img2vid.json`): 131/132 = hi/lo 14B loaders,
+  128 = block swap, 115 = RIFE ×2, 116 = CreateVideo (fps), 117 = SaveVideo (mp4),
+  158 = WanVideoDecode (clean frames), 150 = steps, 151 = step boundary, 139/140 = samplers,
+  147 = resolution, 156 = i2v encode (num_frames), 148 = LoadImage.
+
+## DaVinci (resolved this session)
+
+- Image-sequence import: Media Storage 3-dots → **Frame Display Mode = Sequence**, then drag in.
+- **Optical Flow on a sequence clip:** right-click → Change Clip Speed → set %, **tick "Ripple
+  Timeline"** (else slowing cuts off at the old duration = "si ferma a metà"), then right-click
+  → Retime Process → Optical Flow + Motion Estimation: Enhanced Better.
+- The DaVinci MCP bridge (`mcp__davinci-resolve__*`) needs CursorBridge running inside Resolve
+  (Workspace > Scripts > CursorBridge) — often OFF, so deliver steps as text.
 
 ## ⚠️ #1 GOTCHA — ComfyUI won't connect after a ComfyUI Desktop update/reboot
 

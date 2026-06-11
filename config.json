@@ -162,7 +162,8 @@
       },
       "defaults": { "resolution": 320, "steps": 20, "cfg": 5.0, "frames": 65, "fps": 32, "minSteps": 15, "stepsBoundaryRatio": 0.65 },
       "exportFramesNode": "158",
-      "videoSaveNode": "117"
+      "videoSaveNode": "117",
+      "vramSafe": { "resThreshold": 400, "blockSwapNode": "128", "blocksHigh": 40, "vaeTilingNode": "158" }
     }
   ]
 }
