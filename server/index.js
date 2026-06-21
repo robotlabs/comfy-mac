@@ -9,26 +9,64 @@ import { ComfyClient } from "./comfy.js";
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const root = join(__dirname, "..");
 
-const config = JSON.parse(await readFile(join(root, "config.json"), "utf8"));
+// This instance is bound to ONE target — "local" (LAN/Tailscale PC) or "runpod" —
+// chosen via COMFY_TARGET. Run two processes (two ports) so the local and RunPod
+// sessions stay fully isolated: restarting/reloading one never disturbs the other.
+const TARGET = (process.env.COMFY_TARGET || "local").toLowerCase();
 
-// Load every workflow template into a registry keyed by id.
+let config;
+// Workflow templates for THIS target, keyed by id. Rebuilt by loadConfig() so new/edited
+// workflows are picked up live via POST /api/reload — no restart, no touching the other instance.
 const workflows = new Map();
-for (const wf of config.workflows) {
-  const template = JSON.parse(await readFile(join(root, wf.template), "utf8"));
-  workflows.set(wf.id, { ...wf, template });
-}
-const defaultWorkflowId = config.defaultWorkflow || config.workflows[0]?.id;
+let targetWorkflowDefs = [];
+let defaultWorkflowId;
 
-// Connection targets — LAN and/or Tailscale (legacy single host still supported).
-const hosts = config.comfy.hosts || [{ label: "ComfyUI", host: config.comfy.host }];
+async function loadConfig() {
+  config = JSON.parse(await readFile(join(root, "config.json"), "utf8"));
+  targetWorkflowDefs = config.workflows.filter((w) => (w.target || "local") === TARGET);
+  workflows.clear();
+  for (const wf of targetWorkflowDefs) {
+    const template = JSON.parse(await readFile(join(root, wf.template), "utf8"));
+    workflows.set(wf.id, { ...wf, template });
+  }
+  defaultWorkflowId =
+    targetWorkflowDefs.find((w) => w.id === config.defaultWorkflow)?.id || targetWorkflowDefs[0]?.id;
+}
+await loadConfig();
+
+// Connection hosts for this target: local → LAN/Tailscale (host, no url); runpod → the proxy url host.
+const allHosts = config.comfy.hosts || [{ label: "ComfyUI", host: config.comfy.host }];
+const hosts =
+  TARGET === "runpod"
+    ? allHosts.filter((h) => h.url !== undefined)
+    : allHosts.filter((h) => h.url === undefined);
 const comfyPort = config.comfy.port;
 let connMode = "auto"; // "auto" or a host index
 let activeHostIndex = 0;
 
-async function probeHost(host) {
+// A host targets either a LAN ip+port (http://ip:port) or a full base URL
+// (RunPod proxy: https://<pod>-8188.proxy.runpod.net). hostBase() returns the
+// full base URL either way ("" if a url-host hasn't been filled in yet).
+function hostBase(h) {
+  if (!h) return "";
+  if (h.url !== undefined) return String(h.url || "").replace(/\/$/, "");
+  return `http://${h.host}:${comfyPort}`;
+}
+
+// The RunPod proxy URL changes every time a new pod is created, so it's not in
+// config.json — it's pasted from the UI and persisted to this file.
+const runpodHost = hosts.find((h) => h.url !== undefined);
+const runpodUrlFile = join(__dirname, ".runpod-url");
+if (runpodHost && existsSync(runpodUrlFile)) {
+  runpodHost.url = (await readFile(runpodUrlFile, "utf8")).trim();
+}
+
+async function probeHost(h) {
+  const base = hostBase(h);
+  if (!base) return false;
   try {
-    const r = await fetch(`http://${host}:${comfyPort}/system_stats`, {
-      signal: AbortSignal.timeout(1500),
+    const r = await fetch(`${base}/system_stats`, {
+      signal: AbortSignal.timeout(base.startsWith("https") ? 4000 : 1500),
     });
     return r.ok;
   } catch {
@@ -39,13 +77,13 @@ async function probeHost(host) {
 // Pick the first reachable host (LAN before Tailscale), falling back to the first.
 async function pickAutoHost() {
   for (let i = 0; i < hosts.length; i++) {
-    if (await probeHost(hosts[i].host)) return i;
+    if (await probeHost(hosts[i])) return i;
   }
   return 0;
 }
 
 activeHostIndex = await pickAutoHost();
-const comfy = new ComfyClient({ host: hosts[activeHostIndex].host, port: comfyPort });
+const comfy = new ComfyClient({ base: hostBase(hosts[activeHostIndex]) });
 comfy.connect();
 
 const app = express();
@@ -114,6 +152,25 @@ async function saveImages(promptId, comfyImages) {
   }
 }
 
+// Save the last-frame PNG NEXT TO the video, with the SAME base name (e.g. clip_00007_.mp4
+// → clip_00007_.png), so the still always sits beside its clip in the folder.
+async function saveLastframe(promptId, item, videoBase) {
+  const job = pending.get(promptId);
+  if (!job?.saveDir) return;
+  const dir = expandHome(job.saveDir.trim());
+  try {
+    await mkdir(dir, { recursive: true });
+    const r = await fetch(comfy.imageUrl(item));
+    if (!r.ok) return;
+    const dest = join(dir, `${videoBase}.png`);
+    await writeFile(dest, Buffer.from(await r.arrayBuffer()));
+    savedPaths.add(dest);
+    broadcast({ type: "saved", path: dest, promptId });
+  } catch (e) {
+    broadcast({ type: "saveError", message: String(e.message || e), promptId });
+  }
+}
+
 // Translate ComfyUI websocket events into compact frontend events.
 comfy.onMessage((msg) => {
   const { type, data = {} } = msg;
@@ -146,11 +203,29 @@ comfy.onMessage((msg) => {
               type: img.type ?? "output",
             }),
         );
-        // The "mp4 + last frame PNG" export adds a secondary SaveImage node; save its PNG
+        // The last-frame PNG (either our injected "__lastframe_save" node, or a workflow
+        // that natively saves a "lastframe" SaveImage — e.g. the RunPod WAN i2v): save it
         // but don't let it replace the mp4 in the viewer.
-        const secondary = data.node === "__lastframe_save";
+        const secondary =
+          data.node === "__lastframe_save" ||
+          (!isVideo && items.some((im) => /lastframe/i.test(im.filename || "")));
         broadcast({ type: "image", images, isVideo, promptId: data.prompt_id, secondary });
-        saveImages(data.prompt_id, items);
+        const job = pending.get(data.prompt_id);
+        if (secondary) {
+          // Last-frame PNG: save it named after the video. The video event may not have
+          // arrived yet, so stash it and flush once we know the video's base name.
+          if (job?.videoBase) saveLastframe(data.prompt_id, items[0], job.videoBase);
+          else if (job) job.pendingLastframe = items[0];
+        } else {
+          saveImages(data.prompt_id, items);
+          if (isVideo && job) {
+            job.videoBase = items[0].filename.replace(/\.[^.]+$/, "");
+            if (job.pendingLastframe) {
+              saveLastframe(data.prompt_id, job.pendingLastframe, job.videoBase);
+              job.pendingLastframe = null;
+            }
+          }
+        }
       }
       break;
     case "execution_error":
@@ -185,10 +260,19 @@ function randomSeed() {
 
 app.get("/api/config", (req, res) => {
   res.json({
-    connection: { mode: connMode, activeHostIndex, hosts: hosts.map((h) => ({ label: h.label })) },
+    connection: {
+      mode: connMode,
+      activeHostIndex,
+      hosts: hosts.map((h) => ({
+        label: h.label,
+        editable: h.url !== undefined,
+        url: h.url !== undefined ? h.url || "" : undefined,
+      })),
+    },
     defaultSaveDir,
+    target: TARGET,
     defaultWorkflow: defaultWorkflowId,
-    workflows: config.workflows.map((w) => {
+    workflows: targetWorkflowDefs.map((w) => {
       const tmpl = workflows.get(w.id)?.template;
       const neg = w.fields.negative;
       const defaultNegative = neg && tmpl?.[neg.node]?.inputs?.[neg.field];
@@ -198,6 +282,7 @@ app.get("/api/config", (req, res) => {
       id: w.id,
       name: w.name,
       type: w.type || "text2img",
+      target: w.target || "local",
       promptMode: w.promptMode,
       defaults: w.defaults,
       defaultNegative: defaultNegative || "",
@@ -205,6 +290,8 @@ app.get("/api/config", (req, res) => {
       exportChoice: !!w.exportFramesNode,
       toggles: (w.toggles || []).map((t) => ({ key: t.key, label: t.label, default: !!t.default })),
       has: {
+        prompt: !!(w.fields.positive || w.fields.prompt),
+        seed: !!w.fields.seed,
         negative: !!w.fields.negative,
         cfg: !!w.fields.cfg,
         steps: !!w.fields.steps,
@@ -218,6 +305,9 @@ app.get("/api/config", (req, res) => {
         resolution: !!w.fields.resolution,
         frames: !!w.fields.frames,
         fps: !!w.fields.fps,
+        duration: !!w.fields.duration,
+        shift: !!w.fields.shift,
+        loraHigh: !!w.fields.loraHigh,
       },
       };
     }),
@@ -263,6 +353,9 @@ app.post("/api/generate", async (req, res) => {
       resolution,
       frames,
       fps,
+      duration,
+      shift,
+      loraHigh,
       prefix,
       saveDir,
     } = req.body;
@@ -306,6 +399,9 @@ app.post("/api/generate", async (req, res) => {
     if (resolution) setField(graph, f.resolution, Math.floor(Number(resolution)));
     if (frames) setField(graph, f.frames, Math.floor(Number(frames)));
     if (fps) setField(graph, f.fps, Number(fps));
+    if (duration) setField(graph, f.duration, Number(duration));
+    if (shift !== undefined && shift !== "") setField(graph, f.shift, Number(shift));
+    if (loraHigh !== undefined && loraHigh !== "") setField(graph, f.loraHigh, Number(loraHigh));
 
     // VRAM-safe auto-engage for high-res video, split by cost:
     //  - VAE tiling (tilingThreshold): cheap on time, big OOM help at the decode — engage early.
@@ -419,8 +515,38 @@ app.post("/api/host", async (req, res) => {
       connMode = idx;
       activeHostIndex = idx;
     }
-    comfy.setHost(hosts[activeHostIndex].host);
+    comfy.setBase(hostBase(hosts[activeHostIndex]));
     res.json({ ok: true, mode: connMode, activeHostIndex, label: hosts[activeHostIndex].label });
+  } catch (e) {
+    res.status(500).json({ error: String(e.message || e) });
+  }
+});
+
+// Set/persist the RunPod ComfyUI proxy URL (it changes per pod). Reconnects live
+// if RunPod is the active target. Pass { url: "" } to clear it.
+app.post("/api/runpod-url", async (req, res) => {
+  try {
+    if (!runpodHost) return res.status(400).json({ error: "no RunPod host configured" });
+    const url = String(req.body?.url || "").trim().replace(/\/$/, "");
+    runpodHost.url = url;
+    try {
+      await writeFile(runpodUrlFile, url, "utf8");
+    } catch {}
+    if (hosts[activeHostIndex] === runpodHost) comfy.setBase(hostBase(runpodHost));
+    res.json({ ok: true, url });
+  } catch (e) {
+    res.status(500).json({ error: String(e.message || e) });
+  }
+});
+
+// Hot-reload this instance's workflow registry from config.json + the template files.
+// Lets new/edited workflows be picked up WITHOUT a restart — so adding a RunPod workflow
+// never forces a refresh of the separate local instance (and vice-versa). Connection/host
+// state is left untouched on purpose.
+app.post("/api/reload", async (req, res) => {
+  try {
+    await loadConfig();
+    res.json({ ok: true, target: TARGET, workflows: targetWorkflowDefs.length });
   } catch (e) {
     res.status(500).json({ error: String(e.message || e) });
   }
@@ -593,8 +719,8 @@ app.get("/api/image", async (req, res) => {
   }
 });
 
-const port = config.server.port;
+const port = Number(process.env.PORT) || config.server.port;
 app.listen(port, () => {
-  console.log(`\n  comfy-mac → http://localhost:${port}`);
+  console.log(`\n  comfy-mac [${TARGET}] → http://localhost:${port}`);
   console.log(`  ComfyUI   → ${comfy.base}\n`);
 });

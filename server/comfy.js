@@ -4,15 +4,20 @@ import { randomUUID } from "node:crypto";
 // Thin client for a remote ComfyUI server: queues prompts over HTTP and
 // listens to the execution WebSocket so we can relay live progress.
 export class ComfyClient {
-  constructor({ host, port }) {
-    this.host = host;
-    this.port = port;
-    this.base = `http://${host}:${port}`;
-    this.wsBase = `ws://${host}:${port}`;
+  constructor({ base, host, port }) {
+    this._applyBase(base || `http://${host}:${port}`);
     this.clientId = randomUUID();
     this.ws = null;
     this.listeners = new Set();
     this.connected = false;
+  }
+
+  // `base` is a full base URL: http://ip:port (LAN/Tailscale) or
+  // https://<pod>-8188.proxy.runpod.net (RunPod proxy). The websocket scheme
+  // follows the http scheme: http→ws, https→wss.
+  _applyBase(base) {
+    this.base = String(base || "").replace(/\/$/, "");
+    this.wsBase = this.base.replace(/^http/, "ws");
   }
 
   connect() {
@@ -43,18 +48,21 @@ export class ComfyClient {
     ws.on("error", () => ws.close());
   }
 
-  // Point at a different host (LAN vs Tailscale) and reconnect the websocket.
-  setHost(host) {
-    if (!host || host === this.host) return;
-    this.host = host;
-    this.base = `http://${host}:${this.port}`;
-    this.wsBase = `ws://${host}:${this.port}`;
+  // Point at a different ComfyUI (LAN / Tailscale / RunPod) and reconnect the websocket.
+  setBase(base) {
+    const norm = String(base || "").replace(/\/$/, "");
+    if (!norm || norm === this.base) return;
+    this._applyBase(norm);
     if (this.ws) {
-      this.ws.removeAllListeners();
-      try {
-        this.ws.close();
-      } catch {}
+      const old = this.ws;
       this.ws = null;
+      old.removeAllListeners();
+      // Closing a socket that's still CONNECTING (e.g. when the old host was unreachable)
+      // emits an async 'error' — keep a no-op listener so it can't crash the process.
+      old.on("error", () => {});
+      try {
+        old.terminate();
+      } catch {}
     }
     this.connected = false;
     this.connect();

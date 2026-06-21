@@ -4,14 +4,29 @@ A local web app on the Mac that drives **ComfyUI** running on a separate GPU PC,
 LAN at home or remotely via Tailscale. Send prompts/images from the Mac, the PC renders,
 images/videos come back, get saved, and can be snapshotted to recreate later.
 
-## Run
+## Run — two separate instances (Local vs RunPod)
+
+The app runs as **two independent processes**, one per target, so the local and RunPod
+sessions never interfere. Pick the bookmark you need.
 
 ```
-npm start            # → http://localhost:4242
+npm run local        # COMFY_TARGET=local  → http://localhost:4242  (LAN/Tailscale PC, local workflows)
+npm run runpod       # COMFY_TARGET=runpod → http://localhost:4243  (RunPod pod, runpod workflows)
+npm start            # alias for `npm run local`
 ```
 
-Requirements at run time: the PC is on/awake with **ComfyUI Desktop open**, and **Tailscale
-running** on both Mac and PC (only needed for the Tailscale connection option).
+Each process is bound to ONE target (env `COMFY_TARGET`, port via `PORT`): it loads **only**
+that target's hosts and **only** the workflows whose `target` matches (untagged = `local`).
+A header badge (green **Local** / orange **RunPod**) marks which instance a tab is.
+
+**Why two**: editing/adding a workflow used to need a full restart, which killed whatever the
+single server was running. Now restarting (or hot-reloading) the RunPod instance never touches
+the local one. **Hot-reload**: `POST /api/reload` re-reads `config.json` + templates for that
+instance live — add a RunPod workflow and reload `:4243`, no restart, local `:4242` untouched.
+
+Requirements at run time: for **local**, the PC is on/awake with **ComfyUI Desktop open** (+
+**Tailscale** on both ends for the Tailscale option); for **runpod**, the pod is up and its
+proxy URL is pasted into the RunPod field (persisted in `server/.runpod-url`).
 
 ## Architecture
 
@@ -77,9 +92,10 @@ else `~/Pictures/comfy-mac`. Backend picks at startup, exposed as `defaultSaveDi
 
 ## API (server/index.js)
 
-`/api/config`, `/api/health`, `/api/generate`, `/api/upload`, `/api/image` (proxy, supports
-Range for video), `/api/delete`, `/api/free`, `/api/host` (switch connection), `/api/package`,
-`/api/stream` (SSE progress).
+`/api/config` (includes `target`), `/api/health`, `/api/generate`, `/api/upload`, `/api/image`
+(proxy, supports Range for video), `/api/delete`, `/api/free`, `/api/host` (switch connection),
+`/api/runpod-url` (set/persist pod URL), `/api/reload` (hot-reload this instance's workflows),
+`/api/package`, `/api/stream` (SSE progress).
 
 ## Gotchas / notes
 

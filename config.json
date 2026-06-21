@@ -3,7 +3,8 @@
     "port": 8000,
     "hosts": [
       { "label": "Home (LAN)", "host": "192.168.1.194" },
-      { "label": "Remote (Tailscale)", "host": "100.65.146.55" }
+      { "label": "Remote (Tailscale)", "host": "100.65.146.55" },
+      { "label": "RunPod", "url": "" }
     ]
   },
   "server": {
@@ -164,6 +165,126 @@
       "exportFramesNode": "158",
       "videoSaveNode": "117",
       "vramSafe": { "tilingThreshold": 400, "vaeTilingNode": "158", "swapThreshold": 640, "blockSwapNode": "128", "blocksHigh": 30 }
+    },
+    {
+      "id": "wan2.2-i2v",
+      "name": "WAN 2.2 Image→Video",
+      "type": "img2vid",
+      "target": "runpod",
+      "template": "server/workflows/wan2.2-i2v.json",
+      "promptMode": "positive-negative",
+      "fields": {
+        "image":    { "node": "97", "field": "image" },
+        "positive": { "node": "129:93", "field": "text" },
+        "negative": { "node": "129:89", "field": "text" },
+        "seed":     { "node": "129:86", "field": "noise_seed" },
+        "width":    { "node": "129:98", "field": "width" },
+        "height":   { "node": "129:98", "field": "height" },
+        "duration": { "node": "129:161", "field": "value" },
+        "fps":      { "node": "129:94", "field": "fps" },
+        "shift": [
+          { "node": "129:103", "field": "shift" },
+          { "node": "129:104", "field": "shift" }
+        ],
+        "loraHigh": { "node": "129:101", "field": "strength_model" },
+        "prefix":   { "node": "108", "field": "filename_prefix" }
+      },
+      "toggles": [
+        { "key": "fast", "label": "Lightning LoRA 4-step (veloce)", "node": "129:131", "field": "value", "default": true }
+      ],
+      "defaults": { "width": 720, "height": 1280, "duration": 5, "fps": 54, "shift": 5, "loraHigh": 1.0 }
+    },
+    {
+      "id": "wan2.2-t2v",
+      "name": "WAN 2.2 Text→Video",
+      "type": "text2vid",
+      "target": "runpod",
+      "template": "server/workflows/wan2.2-t2v.json",
+      "promptMode": "single",
+      "fields": {
+        "prompt": { "node": "128:89", "field": "text" },
+        "seed":   { "node": "128:81", "field": "noise_seed" },
+        "width":  { "node": "128:74", "field": "width" },
+        "height": { "node": "128:74", "field": "height" },
+        "frames": { "node": "128:74", "field": "length" },
+        "fps": { "node": "128:88", "field": "fps" },
+        "steps": { "node": "128:117", "field": "value" },
+        "stepsBoundary": { "node": "128:118", "field": "value" },
+        "shift": [
+          { "node": "128:82", "field": "shift" },
+          { "node": "128:86", "field": "shift" }
+        ],
+        "loraHigh": { "node": "128:83", "field": "strength_model" },
+        "prefix": { "node": "80", "field": "filename_prefix" }
+      },
+      "toggles": [
+        { "key": "fast", "label": "Lightning LoRA 4-step (veloce)", "node": "128:129", "field": "value", "default": true }
+      ],
+      "defaults": { "width": 480, "height": 848, "frames": 81, "fps": 32, "shift": 3, "loraHigh": 1.0, "steps": 8, "stepsBoundaryRatio": 0.5 }
+    },
+    {
+      "id": "wan2.2-t2v-hq",
+      "name": "WAN 2.2 Text→Video (full quality, no lightning)",
+      "type": "text2vid",
+      "target": "runpod",
+      "template": "server/workflows/wan2.2-t2v-hq.json",
+      "promptMode": "single",
+      "fields": {
+        "prompt": { "node": "128:89", "field": "text" },
+        "seed":   { "node": "128:81", "field": "noise_seed" },
+        "width":  { "node": "128:74", "field": "width" },
+        "height": { "node": "128:74", "field": "height" },
+        "duration": { "node": "128:126", "field": "value" },
+        "fps":    { "node": "128:88", "field": "fps" },
+        "cfg":    { "node": "128:81", "field": "cfg" },
+        "steps": [
+          { "node": "128:81", "field": "steps" },
+          { "node": "128:78", "field": "steps" },
+          { "node": "128:78", "field": "end_at_step" }
+        ],
+        "stepsBoundary": [
+          { "node": "128:81", "field": "end_at_step" },
+          { "node": "128:78", "field": "start_at_step" }
+        ],
+        "shift": [
+          { "node": "128:82", "field": "shift" },
+          { "node": "128:86", "field": "shift" }
+        ],
+        "prefix": { "node": "80", "field": "filename_prefix" }
+      },
+      "defaults": { "width": 480, "height": 848, "duration": 5, "fps": 24, "cfg": 3.5, "shift": 5, "steps": 20, "stepsBoundaryRatio": 0.5 }
+    },
+    {
+      "id": "ltx-2.3-t2v",
+      "name": "LTX-2.3 Text→Video",
+      "type": "text2vid",
+      "target": "runpod",
+      "template": "server/workflows/ltx-2.3-t2v.json",
+      "promptMode": "single",
+      "fields": {
+        "prompt": { "node": "267:266", "field": "value" },
+        "seed":   { "node": "267:237", "field": "noise_seed" },
+        "width":  { "node": "267:257", "field": "value" },
+        "height": { "node": "267:258", "field": "value" },
+        "duration": { "node": "267:225", "field": "value" },
+        "prefix": { "node": "75", "field": "filename_prefix" }
+      },
+      "toggles": [
+        { "key": "enhance", "label": "Prompt Enhance (Gemma)", "node": "267:330", "field": "value", "default": true }
+      ],
+      "defaults": { "width": 1280, "height": 720, "duration": 5 }
+    },
+    {
+      "id": "wan-upscale",
+      "name": "Fast GAN Video Upscale (4×)",
+      "type": "video-upscale",
+      "template": "server/workflows/wan-upscale.json",
+      "promptMode": "none",
+      "fields": {
+        "image":  { "node": "9",  "field": "file" },
+        "prefix": { "node": "12", "field": "filename_prefix" }
+      },
+      "defaults": {}
     }
   ]
 }

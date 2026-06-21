@@ -20,12 +20,15 @@ const el = {
   imageClear2: $("imageClear2"),
   sizeField: $("sizeField"),
   positive: $("positive"),
+  positiveField: $("positiveField"),
   positiveLabel: $("positiveLabel"),
   negative: $("negative"),
   negativeField: $("negativeField"),
   cfgField: $("cfgField"),
   stepsField: $("stepsField"),
   seed: $("seed"),
+  seedField: $("seedField"),
+  countField: $("countField"),
   randomBtn: $("randomBtn"),
   count: $("count"),
   sampler: $("sampler"),
@@ -53,12 +56,26 @@ const el = {
   framesField: $("framesField"),
   fps: $("fps"),
   fpsField: $("fpsField"),
+  duration: $("duration"),
+  durationField: $("durationField"),
+  shift: $("shift"),
+  shiftField: $("shiftField"),
+  loraHigh: $("loraHigh"),
+  loraHighField: $("loraHighField"),
   resultVideo: $("resultVideo"),
   tabs: $("tabs"),
+  controls: $("controls"),
   addToQueue: $("addToQueue"),
   queue: $("queue"),
   runQueue: $("runQueue"),
   clearQueue: $("clearQueue"),
+  sbDrop: $("sbDrop"),
+  sbFiles: $("sbFiles"),
+  sbList: $("sbList"),
+  sbRun: $("sbRun"),
+  sbClear: $("sbClear"),
+  sbOverrideEnable: $("sbOverrideEnable"),
+  sbOverrideCount: $("sbOverrideCount"),
   generate: $("generate"),
   placeholder: $("placeholder"),
   result: $("result"),
@@ -73,12 +90,16 @@ const el = {
   importFile: $("importFile"),
   download: $("download"),
   openFull: $("openFull"),
+  lastFrame: $("lastFrame"),
+  lastFrameImg: $("lastFrameImg"),
   history: $("history"),
   loadRecent: $("loadRecent"),
   recentN: $("recentN"),
   dot: $("dot"),
   statusText: $("statusText"),
   connSelect: $("connSelect"),
+  runpodUrl: $("runpodUrl"),
+  targetBadge: $("targetBadge"),
   freeVram: $("freeVram"),
   queueStatus: $("queueStatus"),
   cancelQueue: $("cancelQueue"),
@@ -96,6 +117,36 @@ let rendering = false;
 let stopRequested = false; // set by "Annulla" to break out of a multi-image single render
 let lastProgressAt = 0; // ms of last event for the in-flight render (watchdog)
 let currentLabel = "";
+
+// --- ETA: estimate time left from the rate of ComfyUI step/frame progress ---
+// Keyed by promptId. Uses a smoothed time-per-step; resets when the step counter goes
+// backwards (e.g. WAN's high→low-noise sampler split restarts the count, or a new phase).
+const etaTrack = new Map();
+function etaRemainingMs(promptId, value, max) {
+  const now = Date.now();
+  let s = etaTrack.get(promptId);
+  if (!s || value < s.lastVal) {
+    etaTrack.set(promptId, { perStep: 0, lastVal: value, lastT: now });
+    return null;
+  }
+  const dv = value - s.lastVal;
+  if (dv > 0) {
+    const per = (now - s.lastT) / dv;
+    s.perStep = s.perStep ? s.perStep * 0.6 + per * 0.4 : per; // EMA, smooth jitter
+    s.lastVal = value;
+    s.lastT = now;
+  }
+  if (!s.perStep || value >= max) return null;
+  return (max - value) * s.perStep;
+}
+function fmtEta(ms) {
+  if (ms == null) return "";
+  const s = Math.round(ms / 1000);
+  if (s < 1) return "";
+  if (s < 60) return `~${s}s rimasti`;
+  const m = Math.floor(s / 60), r = s % 60;
+  return `~${m}m${r ? " " + r + "s" : ""} rimasti`;
+}
 let currentWrap = null; // the result currently shown in the canvas
 let onRenderDone = null; // resolves when the in-flight single render completes
 const imageWraps = new Map(); // promptId -> history thumbnail element
@@ -104,6 +155,9 @@ const imageWraps = new Map(); // promptId -> history thumbnail element
 let workflowsList = [];
 let currentWorkflow = null;
 let currentMode = "text2img";
+// This instance's target ("local" or "runpod"), set from /api/config. The server already
+// sends only this target's workflows, so filtering is by mode, not by the connection dropdown.
+let appTarget = "local";
 let toggleState = JSON.parse(localStorage.getItem("comfy-mac") || "{}").toggles || {};
 
 // Input image slots — workflows can declare one or two. Each slot owns its dropzone
@@ -115,7 +169,8 @@ const imageSlots = [
 const imgSlot = (k) => imageSlots.find((s) => s.key === k);
 
 // Batch queue
-let queue = []; // { positive, negative }
+let queue = []; // { positive, negative, prefix }
+let superEntries = []; // Super Batch: [{ name, workflow, positive, negative, count, format, width, height, saveDir }]
 const batchJobs = new Map(); // promptId -> { item, params, seed, row, wrap, _path }
 let batchActive = 0;
 
@@ -137,10 +192,15 @@ if (saved.scheduler) el.scheduler.value = saved.scheduler;
 if (saved.denoise) el.denoise.value = saved.denoise;
 if (saved.resolution) el.resolution.value = saved.resolution;
 if (saved.frames) el.frames.value = saved.frames;
+if (saved.duration) el.duration.value = saved.duration;
+if (saved.shift) el.shift.value = saved.shift;
+if (saved.loraHigh) el.loraHigh.value = saved.loraHigh;
 if (saved.fps) el.fps.value = saved.fps;
 if (saved.exportFormat) el.exportFormat.value = saved.exportFormat;
 if (saved.randomize === false) setRandomize(false);
-queue = (saved.queue || []).map((q) => ({ positive: q.positive, negative: q.negative }));
+if (saved.sbOverrideEnable) el.sbOverrideEnable.checked = true;
+if (saved.sbOverrideCount) el.sbOverrideCount.value = saved.sbOverrideCount;
+queue = (saved.queue || []).map((q) => ({ positive: q.positive, negative: q.negative, prefix: q.prefix || "" }));
 
 function persist() {
   localStorage.setItem(
@@ -162,12 +222,17 @@ function persist() {
       resolution: el.resolution.value,
       frames: el.frames.value,
       fps: el.fps.value,
+      duration: el.duration.value,
+      shift: el.shift.value,
+      loraHigh: el.loraHigh.value,
       randomize,
       mode: currentMode,
       workflow: currentWorkflow?.id,
       toggles: toggleState,
       exportFormat: el.exportFormat.value,
-      queue: queue.map((q) => ({ positive: q.positive, negative: q.negative })),
+      sbOverrideEnable: el.sbOverrideEnable.checked,
+      sbOverrideCount: el.sbOverrideCount.value,
+      queue: queue.map((q) => ({ positive: q.positive, negative: q.negative, prefix: q.prefix })),
     }),
   );
 }
@@ -243,6 +308,7 @@ function setMode(mode, { workflowId = null, applyDefaults = true } = {}) {
   currentMode = mode;
   el.modeSelect.value = mode;
 
+  // The server already scoped workflowsList to this instance's target, so filter by mode only.
   const list = workflowsList.filter((w) => (w.type || "text2img") === mode);
   const empty = list.length === 0;
   el.emptyMode.classList.toggle("hidden", !empty);
@@ -299,25 +365,44 @@ function applyWorkflow(id, applyDefaults) {
   el.denoiseField.classList.toggle("hidden", !(has.denoise && has.image));
   el.imageField.classList.toggle("hidden", !has.image);
   el.imageField2.classList.toggle("hidden", !has.image2);
-  el.imageLabel.textContent = has.image2 ? "Image 1" : "Input image";
+  const isUpscale = currentWorkflow.type === "video-upscale";
+  el.imageLabel.textContent = isUpscale ? "Input video" : has.image2 ? "Image 1" : "Input image";
+  // Workflows with no prompt (e.g. video upscale) hide the prompt box entirely.
+  el.positiveField.classList.toggle("hidden", has.prompt === false);
+  // Seed + "images per prompt" only matter for sampler-based workflows. A deterministic
+  // pass (GAN upscale, no seed field) ignores the seed, and re-running it N times yields N
+  // identical files — so hide both and pin count to 1.
+  el.seedField.classList.toggle("hidden", has.seed === false);
+  el.countField.classList.toggle("hidden", has.seed === false);
+  if (has.seed === false) el.count.value = "1";
   // Show the workflow's real save prefix as the placeholder (used when the field is left blank).
   el.prefix.placeholder = currentWorkflow.defaultPrefix || currentWorkflow.id;
   el.sizeField.classList.toggle("hidden", !has.width);
   el.resolutionField.classList.toggle("hidden", !has.resolution);
+  el.durationField.classList.toggle("hidden", !has.duration);
+  el.shiftField.classList.toggle("hidden", !has.shift);
+  el.loraHighField.classList.toggle("hidden", !has.loraHigh);
   el.framesField.classList.toggle("hidden", !has.frames);
   el.fpsField.classList.toggle("hidden", !has.fps);
   // Export format chooser (mp4 / PNG sequence) — only for workflows that support it (img2vid).
   el.exportFormatField.classList.toggle("hidden", !currentWorkflow.exportChoice);
   // Per-workflow minimum steps (WAN needs >= 15 or its high/low-noise split breaks).
   el.steps.min = currentWorkflow.defaults?.minSteps || 1;
+  // The workflow's declared steps/cfg are authoritative and always applied — otherwise a
+  // value left over from another workflow (e.g. a 20-step test) leaks in across switches.
+  const wd0 = currentWorkflow.defaults || {};
+  if (wd0.steps != null) el.steps.value = wd0.steps;
+  if (wd0.cfg != null) el.cfg.value = wd0.cfg;
+  if (wd0.fps != null) el.fps.value = wd0.fps;
+  if (wd0.frames != null) el.frames.value = wd0.frames;
+  if (wd0.shift != null) el.shift.value = wd0.shift;
+  if (wd0.loraHigh != null) el.loraHigh.value = wd0.loraHigh;
   if ((parseInt(el.steps.value) || 0) < el.steps.min) el.steps.value = el.steps.min;
   renderToggles();
 
   if (applyDefaults) {
     if (has.negative && currentWorkflow.defaultNegative) el.negative.value = currentWorkflow.defaultNegative;
     const d = currentWorkflow.defaults || {};
-    if (d.steps != null) el.steps.value = d.steps;
-    if (d.cfg != null) el.cfg.value = d.cfg;
     if (d.sampler != null) el.sampler.value = d.sampler;
     if (d.scheduler != null) el.scheduler.value = d.scheduler;
     if (d.denoise != null) el.denoise.value = d.denoise;
@@ -325,6 +410,9 @@ function applyWorkflow(id, applyDefaults) {
     if (d.height != null) el.height.value = d.height;
     if (d.resolution != null) el.resolution.value = d.resolution;
     if (d.frames != null) el.frames.value = d.frames;
+    if (d.duration != null) el.duration.value = d.duration;
+    if (d.shift != null) el.shift.value = d.shift;
+    if (d.loraHigh != null) el.loraHigh.value = d.loraHigh;
     if (d.fps != null) el.fps.value = d.fps;
     syncPreset();
   }
@@ -349,13 +437,15 @@ function updateConditionalControls() {
   const has = currentWorkflow?.has || {};
   const cfg = parseFloat(el.cfg.value);
   // Negative is inert when cfg <= 1 — either the workflow's own cfg, or because a fast
-  // toggle pins cfg to 1. Hide it there. cfg and steps stay visible always.
+  // toggle pins cfg to 1. Hide it there.
   const negInert = (has.cfg && !isNaN(cfg) && cfg <= 1) || fastToggleOn();
   const negOk = !!has.negative && !negInert;
   el.negativeField.classList.toggle("hidden", !negOk);
   el.positiveLabel.textContent = negOk ? "Positive prompt" : "Prompt";
   el.cfgField.classList.toggle("hidden", !has.cfg);
-  el.stepsField.classList.remove("hidden");
+  // Steps stay visible on every sampler-based model (they matter even on turbo). A
+  // non-sampler workflow (GAN upscale) has no steps field — hide the dead control there.
+  el.stepsField.classList.toggle("hidden", !has.steps);
 }
 
 el.modeSelect.addEventListener("change", () => setMode(el.modeSelect.value));
@@ -364,14 +454,22 @@ el.cfg.addEventListener("input", updateConditionalControls);
 
 // ---- Input image slots (img2img / img2vid / text2img-img) ----
 async function uploadImageFile(slot, file) {
-  if (!file || !file.type.startsWith("image/")) {
-    toast("Choose an image file");
+  const isVideo = !!file && file.type.startsWith("video/");
+  if (!file || (!file.type.startsWith("image/") && !isVideo)) {
+    toast("Choose an image or video file");
     return;
   }
-  slot.preview.src = URL.createObjectURL(file);
-  slot.preview.classList.remove("hidden");
+  if (isVideo) {
+    // <img> can't preview a video — show the filename in the hint instead.
+    slot.preview.classList.add("hidden");
+    slot.hint.textContent = file.name;
+    slot.hint.classList.remove("hidden");
+  } else {
+    slot.preview.src = URL.createObjectURL(file);
+    slot.preview.classList.remove("hidden");
+    slot.hint.classList.add("hidden");
+  }
   slot.clear.classList.remove("hidden");
-  slot.hint.classList.add("hidden");
   slot.uploaded = null;
   try {
     const res = await fetch(`/api/upload?filename=${encodeURIComponent(file.name || "upload.png")}`, {
@@ -403,11 +501,13 @@ function clearImage(slot) {
   slot.preview.src = "";
   slot.preview.classList.add("hidden");
   slot.clear.classList.add("hidden");
+  if (slot.hintDefault) slot.hint.textContent = slot.hintDefault;
   slot.hint.classList.remove("hidden");
   slot.input.value = "";
 }
 
 for (const slot of imageSlots) {
+  slot.hintDefault = slot.hint.textContent; // restored by clearImage after a video filename overwrite
   slot.dropzone.addEventListener("click", () => slot.input.click());
   slot.input.addEventListener("change", () => uploadImageFile(slot, slot.input.files[0]));
   slot.clear.addEventListener("click", (e) => {
@@ -434,6 +534,8 @@ async function init() {
   try {
     const cfg = await (await fetch("/api/config")).json();
     workflowsList = cfg.workflows || [];
+    appTarget = cfg.target || "local";
+    applyTargetBadge();
     if (!el.saveDir.value && cfg.defaultSaveDir) el.saveDir.value = cfg.defaultSaveDir;
 
     const conn = cfg.connection;
@@ -448,8 +550,13 @@ async function init() {
         o.value = String(i);
         o.textContent = h.label;
         el.connSelect.append(o);
+        if (h.editable) {
+          runpodHostIndex = i;
+          if (h.url) el.runpodUrl.value = h.url;
+        }
       });
       el.connSelect.value = conn.mode === "auto" ? "auto" : String(conn.activeHostIndex);
+      updateRunpodField();
     }
 
     const wid = workflowsList.some((w) => w.id === saved.workflow) ? saved.workflow : cfg.defaultWorkflow;
@@ -467,6 +574,9 @@ async function init() {
     if (!saved.denoise && d.denoise != null) el.denoise.value = d.denoise;
     if (!saved.resolution && d.resolution != null) el.resolution.value = d.resolution;
     if (!saved.frames && d.frames != null) el.frames.value = d.frames;
+    if (!saved.duration && d.duration != null) el.duration.value = d.duration;
+    if (!saved.shift && d.shift != null) el.shift.value = d.shift;
+    if (!saved.loraHigh && d.loraHigh != null) el.loraHigh.value = d.loraHigh;
     if (!saved.fps && d.fps != null) el.fps.value = d.fps;
   } catch {}
   syncPreset();
@@ -526,7 +636,10 @@ function handleEvent(msg) {
     case "progress": {
       const job = batchJobs.get(msg.promptId);
       if (job) {
-        if (msg.max) setItemStatus(job.item, `rendering ${msg.value}/${msg.max}`, "rendering");
+        if (msg.max) {
+          const eta = fmtEta(etaRemainingMs(msg.promptId, msg.value, msg.max));
+          setItemStatus(job.item, `rendering ${msg.value}/${msg.max}${eta ? " · " + eta : ""}`, "rendering");
+        }
         if (job.item._thumb && !job.completed) job.item._thumb.innerHTML = '<div class="spinner"></div>';
         break;
       }
@@ -535,7 +648,8 @@ function handleEvent(msg) {
         if (msg.max) {
           el.bar.style.width = (msg.value / msg.max) * 100 + "%";
           const p = currentLabel ? currentLabel + " · " : "";
-          el.progressText.textContent = `${p}Step ${msg.value} / ${msg.max}`;
+          const eta = fmtEta(etaRemainingMs(msg.promptId, msg.value, msg.max));
+          el.progressText.textContent = `${p}Step ${msg.value} / ${msg.max}${eta ? " · " + eta : ""}`;
         }
       }
       break;
@@ -561,9 +675,19 @@ function handleEvent(msg) {
       // The server caches that URL for a year, so the browser would serve the STALE image.
       // Append the unique promptId so every render gets a distinct, never-before-cached URL.
       const url = bustCache(msg.images[0], msg.promptId);
-      // The "mp4 + last frame PNG" export emits a secondary still alongside the mp4 — it's
-      // saved on the Mac (via the "saved" event) but must not replace the video in the viewer.
-      if (msg.secondary) break;
+      // The last-frame PNG comes back as a "secondary" still alongside the video — it's saved
+      // on the Mac AND surfaced as a "⬇ Last frame" link (full-quality frame to chain clips),
+      // but it must not replace the video in the viewer.
+      if (msg.secondary) {
+        if (msg.promptId === currentPromptId) {
+          el.lastFrameImg.src = url;
+          el.lastFrame.href = url;
+          el.lastFrame.setAttribute("download", `lastframe-${lastSeed}.png`);
+          el.lastFrame.classList.remove("hidden");
+        }
+        break;
+      }
+      etaTrack.delete(msg.promptId); // render done — drop its ETA state
       const job = batchJobs.get(msg.promptId);
       if (job) {
         completeJob(job, url, msg.isVideo);
@@ -631,7 +755,7 @@ function updateQueueStatus(n) {
 }
 
 // ---- Generate ----
-function buildBody(positive, negative, seed) {
+function buildBody(positive, negative, seed, prefixOverride) {
   return {
     workflow: currentWorkflow?.id,
     positive,
@@ -639,7 +763,8 @@ function buildBody(positive, negative, seed) {
     image: imgSlot("image").uploaded,
     image2: imgSlot("image2").uploaded,
     seed,
-    prefix: el.prefix.value,
+    // Batch items carry their own filename prefix; fall back to the global field when blank.
+    prefix: (prefixOverride && prefixOverride.trim()) || el.prefix.value,
     saveDir: el.saveDir.value,
     steps: el.steps.value,
     cfg: el.cfg.value,
@@ -651,6 +776,9 @@ function buildBody(positive, negative, seed) {
     resolution: el.resolution.value,
     frames: el.frames.value,
     fps: el.fps.value,
+    duration: el.duration.value,
+    shift: el.shift.value,
+    loraHigh: el.loraHigh.value,
     toggles: { ...toggleState },
     exportFormat: el.exportFormat.value,
   };
@@ -673,6 +801,9 @@ function paramsFrom(body, seed) {
     resolution: body.resolution,
     frames: body.frames,
     fps: body.fps,
+    duration: body.duration,
+    shift: body.shift,
+    loraHigh: body.loraHigh,
     toggles: body.toggles,
     prefix: body.prefix,
     seed,
@@ -712,6 +843,7 @@ async function generate() {
   el.generate.disabled = true;
   el.progress.classList.remove("hidden");
   el.resultbar.classList.add("hidden");
+  el.lastFrame.classList.add("hidden"); // reset last-frame link for the new render
 
   const count = imageCount();
   const base = parseInt(el.seed.value) || 0;
@@ -838,6 +970,9 @@ function loadParams(p) {
   if (p.denoise !== undefined && p.denoise !== "") el.denoise.value = p.denoise;
   if (p.resolution) el.resolution.value = p.resolution;
   if (p.frames) el.frames.value = p.frames;
+  if (p.duration) el.duration.value = p.duration;
+  if (p.shift) el.shift.value = p.shift;
+  if (p.loraHigh) el.loraHigh.value = p.loraHigh;
   if (p.fps) el.fps.value = p.fps;
   if (p.seed != null) {
     el.seed.value = p.seed;
@@ -953,9 +1088,12 @@ el.tabs.addEventListener("click", (e) => {
   if (!t) return;
   currentTab = t.dataset.tab;
   for (const b of el.tabs.children) b.classList.toggle("is-active", b === t);
-  const batch = currentTab === "batch";
-  document.querySelectorAll(".batch-only").forEach((n) => n.classList.toggle("hidden", !batch));
-  document.querySelectorAll(".render-only").forEach((n) => n.classList.toggle("hidden", batch));
+  // Each *-only block shows only in its own tab.
+  document.querySelectorAll(".render-only").forEach((n) => n.classList.toggle("hidden", currentTab !== "render"));
+  document.querySelectorAll(".batch-only").forEach((n) => n.classList.toggle("hidden", currentTab !== "batch"));
+  document.querySelectorAll(".super-only").forEach((n) => n.classList.toggle("hidden", currentTab !== "super"));
+  // Super mode hides the manual single-shot controls (entries come from dropped files).
+  el.controls.classList.toggle("mode-super", currentTab === "super");
 });
 
 // ---- Batch queue ----
@@ -974,10 +1112,25 @@ function renderQueue() {
     const text = document.createElement("div");
     text.className = "q-text";
     text.textContent = item.positive || "(empty prompt)";
+
+    // Per-item filename prefix — each queue item saves under its own name.
+    const name = document.createElement("input");
+    name.className = "q-name";
+    name.type = "text";
+    name.value = item.prefix || "";
+    name.placeholder = el.prefix.value || currentWorkflow?.defaultPrefix || "filename prefix";
+    name.title = "Filename prefix for this item (blank = use the global prefix)";
+    name.disabled = batchActive > 0;
+    name.addEventListener("click", (e) => e.stopPropagation());
+    name.addEventListener("input", () => {
+      item.prefix = name.value.trim();
+      persist();
+    });
+
     const status = document.createElement("div");
     status.className = "q-status" + (item.statusKind ? " " + item.statusKind : "");
     status.textContent = item.status || "queued";
-    body.append(text, status);
+    body.append(text, name, status);
 
     const del = document.createElement("button");
     del.className = "q-del";
@@ -1004,6 +1157,11 @@ function updateRunButton() {
   el.runQueue.disabled = batchActive > 0 || queue.length === 0;
   el.addToQueue.disabled = batchActive > 0;
   el.clearQueue.disabled = batchActive > 0;
+  // Super Batch run button mirrors the same in-flight counter (the two are mutually exclusive).
+  const sbTotal = superEntries.reduce((n, e) => n + sbCountFor(e), 0);
+  el.sbRun.textContent = batchActive ? `Rendering… ${batchActive} left` : `Run Super Batch${sbTotal ? ` (${sbTotal})` : ""}`;
+  el.sbRun.disabled = batchActive > 0 || superEntries.length === 0;
+  el.sbClear.disabled = batchActive > 0;
 }
 
 function setItemStatus(item, text, kind) {
@@ -1021,7 +1179,7 @@ function addToQueue() {
     toast("Type a positive prompt first");
     return;
   }
-  queue.push({ positive, negative: el.negative.value });
+  queue.push({ positive, negative: el.negative.value, prefix: el.prefix.value.trim() });
   el.positive.value = "";
   persist();
   el.positive.focus();
@@ -1058,7 +1216,7 @@ async function runQueue() {
   for (const item of queue) {
     for (let k = 0; k < count; k++) {
       const seed = randomize ? "" : String(base + k);
-      const body = buildBody(item.positive, item.negative, seed);
+      const body = buildBody(item.positive, item.negative, seed, item.prefix);
       try {
         const res = await fetch("/api/generate", {
           method: "POST",
@@ -1122,6 +1280,222 @@ function finishJob(job, { error }) {
 el.addToQueue.addEventListener("click", addToQueue);
 el.runQueue.addEventListener("click", runQueue);
 el.clearQueue.addEventListener("click", clearQueueFn);
+
+// ---- Super Batch: drop prompt .json files, each describing one full batch ----
+// File schema (one object, or an array / {batch:[...]} of them):
+//   { name, prompt, negative?, count, format: square|story|post, workflow?, saveDir? }
+const SB_FORMATS = {
+  square: { w: 1080, h: 1080 },
+  story: { w: 1080, h: 1920 },
+  post: { w: 1080, h: 1350 },
+};
+const SB_DEFAULT_WORKFLOW = "z-image-turbo";
+
+// Turn one parsed JSON object into a super-batch entry; null if it has no prompt.
+function sbNormalize(obj, fileName) {
+  if (!obj || typeof obj !== "object") return null;
+  const positive = (obj.prompt ?? obj.positive ?? "").toString().trim();
+  if (!positive) return null;
+  const fmtKey = (obj.format || "story").toString().toLowerCase();
+  const fmt = SB_FORMATS[fmtKey] || SB_FORMATS.story;
+  const count = Math.max(1, Math.min(50, parseInt(obj.count ?? obj.renders ?? 1) || 1));
+  const name = (obj.name || obj.prefix || (fileName || "").replace(/\.json$/i, "") || "superbatch").toString().trim();
+  return {
+    name,
+    workflow: (obj.workflow || SB_DEFAULT_WORKFLOW).toString(),
+    positive,
+    negative: (obj.negative || "").toString(),
+    count,
+    _fileCount: count,
+    format: SB_FORMATS[fmtKey] ? fmtKey : "story",
+    width: parseInt(obj.width) || fmt.w,
+    height: parseInt(obj.height) || fmt.h,
+    saveDir: (obj.saveDir || obj.folder || "").toString().trim(),
+    // Optional per-file render params — when present they override the workflow defaults,
+    // so a batch reproduces exactly what the single workflow would render.
+    steps: sbNum(obj.steps),
+    cfg: sbNum(obj.cfg),
+    sampler: obj.sampler ? String(obj.sampler) : undefined,
+    scheduler: obj.scheduler ? String(obj.scheduler) : undefined,
+    denoise: sbNum(obj.denoise),
+    toggles: (obj.toggles && typeof obj.toggles === "object")
+      ? obj.toggles
+      : (obj.fast !== undefined ? { fast: !!obj.fast } : undefined),
+    status: "ready",
+    statusKind: "",
+  };
+}
+function sbNum(v) { return v === undefined || v === null || v === "" ? undefined : Number(v); }
+
+async function sbAddFiles(fileList) {
+  const files = [...(fileList || [])].filter((f) => /\.json$/i.test(f.name) || f.type === "application/json");
+  let added = 0, bad = 0;
+  for (const f of files) {
+    try {
+      const data = JSON.parse(await f.text());
+      const list = Array.isArray(data)
+        ? data
+        : Array.isArray(data.batch) ? data.batch
+        : Array.isArray(data.prompts) ? data.prompts
+        : [data];
+      for (const o of list) {
+        const e = sbNormalize(o, f.name);
+        if (e) { superEntries.push(e); added++; } else bad++;
+      }
+    } catch { bad++; }
+  }
+  toast(added ? `Added ${added} batch${added > 1 ? "es" : ""}${bad ? ` · ${bad} skipped` : ""}` : bad ? "No valid prompt JSON found" : "Drop .json files");
+  renderSuperList();
+  updateRunButton();
+}
+
+function renderSuperList() {
+  el.sbList.innerHTML = "";
+  superEntries.forEach((e, i) => {
+    const row = document.createElement("div");
+    row.className = "sb-item";
+
+    const thumb = document.createElement("div");
+    thumb.className = "q-thumb";
+    thumb.innerHTML = `<span class="q-num">${i + 1}</span>`;
+
+    const main = document.createElement("div");
+    main.className = "sb-main";
+    const name = document.createElement("div");
+    name.className = "sb-name";
+    name.textContent = e.name;
+    const prompt = document.createElement("div");
+    prompt.className = "sb-prompt";
+    prompt.textContent = e.positive;
+    const meta = document.createElement("div");
+    meta.className = "sb-meta";
+    const folder = e.saveDir ? " · " + e.saveDir.split("/").filter(Boolean).slice(-2).join("/") : "";
+    const effCount = sbCountFor(e);
+    const countLbl = el.sbOverrideEnable?.checked ? `${effCount}×*` : `${effCount}×`;
+    meta.textContent = `${countLbl} · ${e.format} ${e.width}×${e.height} · ${e.workflow}${folder}`;
+    const status = document.createElement("div");
+    status.className = "q-status" + (e.statusKind ? " " + e.statusKind : "");
+    status.textContent = e.status || "ready";
+    main.append(name, prompt, meta, status);
+
+    const del = document.createElement("button");
+    del.className = "sb-del";
+    del.textContent = "×";
+    del.title = "Remove";
+    del.addEventListener("click", () => {
+      if (batchActive) return;
+      superEntries.splice(i, 1);
+      renderSuperList();
+      updateRunButton();
+    });
+
+    row.append(thumb, main, del);
+    e.row = row;
+    e._thumb = thumb;
+    e._statusEl = status;
+    el.sbList.append(row);
+  });
+}
+
+// Render exactly like picking this workflow with its defaults, but with the entry's
+// prompt / size / name / folder. Seed left blank → server randomizes every render.
+function buildSuperBody(entry, seed) {
+  const wf = workflowsList.find((w) => w.id === entry.workflow) || {};
+  const d = wf.defaults || {};
+  return {
+    workflow: entry.workflow,
+    positive: entry.positive,
+    negative: entry.negative || "",
+    seed,
+    prefix: entry.name,
+    saveDir: entry.saveDir || el.saveDir.value,
+    width: entry.width,
+    height: entry.height,
+    steps: entry.steps ?? d.steps,
+    cfg: entry.cfg ?? d.cfg,
+    sampler: entry.sampler ?? d.sampler,
+    scheduler: entry.scheduler ?? d.scheduler,
+    denoise: entry.denoise ?? d.denoise,
+    // Pass the workflow's boolean toggles (e.g. Qwen's "4-step fast mode" Lightning LoRA),
+    // so a batch matches the single render where that toggle is ON. Falls back to the
+    // workflow defaults on the server when omitted.
+    toggles: entry.toggles || undefined,
+  };
+}
+
+// Effective images-per-prompt for a Super Batch entry: the global override (when its
+// checkbox is ticked) wins over the per-file count; otherwise use the file's own count.
+function sbOverrideValue() {
+  return Math.max(1, Math.min(50, parseInt(el.sbOverrideCount?.value) || 1));
+}
+function sbCountFor(e) {
+  if (el.sbOverrideEnable?.checked) return sbOverrideValue();
+  return e._fileCount || e.count || 1;
+}
+
+async function runSuperBatch() {
+  if (batchActive || rendering || !superEntries.length) return;
+  batchJobs.clear();
+  superEntries.forEach((e) => {
+    e.count = sbCountFor(e);
+    e.settled = 0;
+    e.ok = 0;
+    setItemStatus(e, "queued", "");
+  });
+  batchActive = superEntries.reduce((n, e) => n + e.count, 0);
+  updateRunButton();
+  for (const entry of superEntries) {
+    for (let k = 0; k < entry.count; k++) {
+      const body = buildSuperBody(entry, ""); // always random seed
+      try {
+        const res = await fetch("/api/generate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "queue failed");
+        batchJobs.set(data.promptId, { item: entry, params: paramsFrom(body, data.seed), seed: data.seed, completed: false });
+      } catch (err) {
+        settleItem(entry, false);
+        batchActive = Math.max(0, batchActive - 1);
+        updateRunButton();
+      }
+    }
+  }
+}
+
+function clearSuperFn() {
+  if (batchActive) return;
+  superEntries = [];
+  renderSuperList();
+  updateRunButton();
+}
+
+el.sbDrop.addEventListener("click", () => el.sbFiles.click());
+el.sbFiles.addEventListener("change", () => { sbAddFiles(el.sbFiles.files); el.sbFiles.value = ""; });
+["dragover", "dragenter"].forEach((ev) =>
+  el.sbDrop.addEventListener(ev, (e) => { e.preventDefault(); el.sbDrop.classList.add("dragover"); }),
+);
+["dragleave"].forEach((ev) =>
+  el.sbDrop.addEventListener(ev, (e) => { e.preventDefault(); el.sbDrop.classList.remove("dragover"); }),
+);
+el.sbDrop.addEventListener("drop", (e) => {
+  e.preventDefault();
+  el.sbDrop.classList.remove("dragover");
+  sbAddFiles(e.dataTransfer.files);
+});
+el.sbRun.addEventListener("click", runSuperBatch);
+el.sbClear.addEventListener("click", clearSuperFn);
+
+// ---- Super Batch images-per-prompt override ----
+function sbOverrideChanged() {
+  renderSuperList();
+  updateRunButton();
+  persist();
+}
+el.sbOverrideEnable.addEventListener("change", sbOverrideChanged);
+el.sbOverrideCount.addEventListener("input", sbOverrideChanged);
 
 // ---- Use-seed button ----
 el.useSeed.addEventListener("click", () => {
@@ -1193,9 +1567,50 @@ el.importFile.addEventListener("change", async () => {
   el.importFile.value = "";
 });
 
-// ---- Connection selector (Auto / LAN / Tailscale) ----
+// ---- Connection selector ----
+// On the runpod instance the editable proxy-URL host exists; its dropdown index is tracked so
+// pasting a new pod URL persists to the right host. Workflow scoping is by instance target now,
+// not by this dropdown (the server only sends this target's workflows).
+let runpodHostIndex = -1;
+function updateRunpodField() {
+  // The RunPod URL field belongs to the runpod instance — always show it there, never on local.
+  el.runpodUrl.classList.toggle("hidden", appTarget !== "runpod");
+}
+
+// Make it unmistakable which instance this tab is — badge + title + body class for theming.
+function applyTargetBadge() {
+  const isRunpod = appTarget === "runpod";
+  document.title = `comfy-mac · ${isRunpod ? "RunPod" : "Local"}`;
+  document.body.classList.toggle("target-runpod", isRunpod);
+  document.body.classList.toggle("target-local", !isRunpod);
+  if (el.targetBadge) {
+    el.targetBadge.textContent = isRunpod ? "RunPod" : "Local";
+    el.targetBadge.classList.remove("hidden");
+  }
+}
+
+async function saveRunpodUrl() {
+  const url = el.runpodUrl.value.trim();
+  try {
+    await fetch("/api/runpod-url", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ url }),
+    });
+  } catch {}
+  setTimeout(refreshHealth, 800);
+}
+el.runpodUrl.addEventListener("change", saveRunpodUrl);
+
 el.connSelect.addEventListener("change", async () => {
   const v = el.connSelect.value;
+  updateRunpodField();
+  // Re-filter the workflow list for the new target (local PC vs RunPod).
+  setMode(currentMode);
+  // Switching to RunPod with an empty URL: persist whatever is typed first.
+  if (runpodHostIndex >= 0 && v === String(runpodHostIndex) && el.runpodUrl.value.trim()) {
+    await saveRunpodUrl();
+  }
   setStatus("", "switching…");
   try {
     await fetch("/api/host", {
@@ -1253,6 +1668,7 @@ document.addEventListener("keydown", (e) => {
   if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
     e.preventDefault();
     if (currentTab === "batch") addToQueue();
+    else if (currentTab === "super") runSuperBatch();
     else generate();
   }
 });

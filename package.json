@@ -4,8 +4,11 @@
   "description": "Send prompts from a Mac to a ComfyUI instance on a GPU PC over the LAN and get images back.",
   "type": "module",
   "scripts": {
-    "start": "node server/index.js",
-    "dev": "node --watch server/index.js"
+    "start": "COMFY_TARGET=local PORT=4242 node server/index.js",
+    "local": "COMFY_TARGET=local PORT=4242 node server/index.js",
+    "runpod": "COMFY_TARGET=runpod PORT=4243 node server/index.js",
+    "dev": "COMFY_TARGET=local PORT=4242 node --watch server/index.js",
+    "dev:runpod": "COMFY_TARGET=runpod PORT=4243 node --watch server/index.js"
   },
   "dependencies": {
     "express": "^4.21.2",

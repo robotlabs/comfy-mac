@@ -11,9 +11,11 @@
       <div class="brand">
         <span class="logo">◆</span>
         <span>comfy<span class="dim">-mac</span></span>
+        <span id="targetBadge" class="target-badge hidden"></span>
       </div>
       <div class="status" id="status">
-        <select id="connSelect" class="connsel" title="Connection: Auto tries home WiFi first, then Tailscale"></select>
+        <select id="connSelect" class="connsel" title="Connection: Auto tries home WiFi first, then Tailscale, then RunPod"></select>
+        <input id="runpodUrl" class="runpod-url hidden" type="text" placeholder="https://<pod>-8188.proxy.runpod.net" title="Incolla l'URL della ComfyUI su RunPod (cambia a ogni pod nuovo)" />
         <span class="dot" id="dot"></span>
         <span id="statusText">connecting…</span>
         <span id="queueStatus" class="queue-chip hidden"></span>
@@ -26,7 +28,7 @@
 
     <main class="layout">
       <!-- Controls -->
-      <section class="panel controls">
+      <section class="panel controls" id="controls">
         <label class="field">
           <span class="label">Mode</span>
           <select id="modeSelect">
@@ -34,6 +36,8 @@
             <option value="text2img-img">Text to Image with Image</option>
             <option value="img2img">Image to Image</option>
             <option value="img2vid">Image to Video</option>
+            <option value="text2vid">Text to Video</option>
+            <option value="video-upscale">Upscale Video</option>
           </select>
         </label>
 
@@ -48,12 +52,13 @@
           <div class="tabs" id="tabs">
             <button type="button" class="tab is-active" data-tab="render">⚡ Render</button>
             <button type="button" class="tab" data-tab="batch">☰ Batch</button>
+            <button type="button" class="tab" data-tab="super">✦ Super Batch</button>
           </div>
 
           <div class="field hidden" id="imageField">
             <span class="label" id="imageLabel">Input image</span>
             <div class="dropzone" id="dropzone">
-              <input type="file" id="imageInput" accept="image/*" hidden />
+              <input type="file" id="imageInput" accept="image/*,video/mp4,video/quicktime,video/webm" hidden />
               <span class="dz-hint" id="dzHint">Drop an image here, or click to choose</span>
               <img id="imagePreview" class="hidden" alt="input" />
               <button type="button" id="imageClear" class="dz-clear hidden" title="Remove image">×</button>
@@ -70,7 +75,7 @@
             </div>
           </div>
 
-          <label class="field">
+          <label class="field" id="positiveField">
             <span class="label" id="positiveLabel">Positive prompt</span>
             <textarea id="positive" rows="6" placeholder="Describe what you want to see…"></textarea>
           </label>
@@ -85,7 +90,18 @@
           <div class="queue" id="queue"></div>
         </div>
 
-        <div class="field">
+        <div class="super-only hidden">
+          <div class="field">
+            <span class="label">Prompt files (.json)</span>
+            <div class="dropzone" id="sbDrop">
+              <input type="file" id="sbFiles" accept=".json,application/json" multiple hidden />
+              <span class="dz-hint">Drop prompt <b>.json</b> files here, or click — each file = one batch (prompt · count · format · folder)</span>
+            </div>
+          </div>
+          <div class="sb-list" id="sbList"></div>
+        </div>
+
+        <div class="field" id="seedField">
           <span class="label">Seed</span>
           <div class="seed-row">
             <input type="number" id="seed" placeholder="random" min="0" />
@@ -95,7 +111,7 @@
           </div>
         </div>
 
-        <div class="field">
+        <div class="field" id="countField">
           <span class="label">Images per prompt</span>
           <input type="number" id="count" min="1" max="50" value="1" title="Render this many variations (one after another)" />
         </div>
@@ -134,13 +150,29 @@
           <input type="number" id="resolution" step="16" min="64" />
         </label>
 
+        <label class="field hidden" id="durationField">
+          <span class="label">Durata <span class="dim">(secondi)</span></span>
+          <input type="number" id="duration" min="1" step="1" />
+        </label>
+
+        <div class="grid2">
+          <label class="field hidden" id="shiftField">
+            <span class="label">Shift <span class="dim">(↓ = più movimento)</span></span>
+            <input type="number" id="shift" min="1" max="10" step="0.5" />
+          </label>
+          <label class="field hidden" id="loraHighField">
+            <span class="label">LoRA high <span class="dim">(↓ = più movimento)</span></span>
+            <input type="number" id="loraHigh" min="0" max="2" step="0.05" />
+          </label>
+        </div>
+
         <div class="grid2">
           <label class="field hidden" id="framesField">
             <span class="label">Frames</span>
             <input type="number" id="frames" min="1" />
           </label>
           <label class="field hidden" id="fpsField">
-            <span class="label">FPS</span>
+            <span class="label">FPS <span class="dim">(lascia il default: i2v 54 con RIFE · t2v 24 nativo)</span></span>
             <input type="number" id="fps" min="1" step="1" />
           </label>
         </div>
@@ -214,6 +246,16 @@
             <button type="button" id="runQueue" class="primary">Run queue</button>
             <button type="button" id="clearQueue" class="ghost">Clear</button>
           </div>
+
+          <div class="super-only hidden batch-actions">
+            <label class="sb-override" title="Se attivo, usa questo numero di immagini per OGNI prompt del Super Batch, ignorando il count scritto nei file">
+              <input type="checkbox" id="sbOverrideEnable" />
+              <span>Override images/prompt</span>
+              <input type="number" id="sbOverrideCount" min="1" max="50" value="3" />
+            </label>
+            <button type="button" id="sbRun" class="primary">Run Super Batch</button>
+            <button type="button" id="sbClear" class="ghost">Clear</button>
+          </div>
         </div>
       </section>
 
@@ -226,6 +268,10 @@
           </div>
           <img id="result" class="hidden" alt="result" />
           <video id="resultVideo" class="hidden" autoplay loop muted playsinline></video>
+          <a id="lastFrame" class="lastframe-thumb hidden" download title="Ultimo frame (qualità piena) — click per scaricarlo / usarlo come start della clip successiva">
+            <img id="lastFrameImg" alt="last frame" />
+            <span>ultimo frame</span>
+          </a>
           <div class="progress hidden" id="progress">
             <div class="bar"><div class="fill" id="bar"></div></div>
             <div class="progress-text" id="progressText">Queued…</div>

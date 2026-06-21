@@ -41,6 +41,15 @@ html, body {
 .brand { display: flex; align-items: center; gap: 10px; font-weight: 600; font-size: 16px; letter-spacing: 0.2px; }
 .brand .logo { color: var(--accent); font-size: 18px; }
 .brand .dim { color: var(--dim); font-weight: 500; }
+/* Which instance is this — Local (green) vs RunPod (orange). Unmistakable at a glance. */
+.target-badge {
+  font-size: 11px; font-weight: 700; letter-spacing: 0.6px; text-transform: uppercase;
+  padding: 2px 8px; border-radius: 999px; border: 1px solid transparent;
+}
+.target-local .target-badge { color: var(--ok); background: rgba(61, 220, 132, 0.12); border-color: rgba(61, 220, 132, 0.35); }
+.target-runpod .target-badge { color: #ffb060; background: rgba(255, 176, 96, 0.13); border-color: rgba(255, 176, 96, 0.4); }
+/* A thin accent rule on the top bar reinforces the instance identity. */
+.target-runpod .topbar { box-shadow: inset 0 -2px 0 0 rgba(255, 176, 96, 0.5); }
 .status { display: flex; align-items: center; gap: 8px; color: var(--dim); font-size: 13px; }
 .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--dim); box-shadow: 0 0 0 0 transparent; transition: 0.3s; }
 .connsel {
@@ -56,6 +65,44 @@ html, body {
   background-repeat: no-repeat;
   background-position: right 9px center;
 }
+.runpod-url {
+  width: 280px;
+  max-width: 38vw;
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  color: var(--text, #e6e8f0);
+  border-radius: 8px;
+  padding: 5px 10px;
+  font-size: 12px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+.runpod-url::placeholder { color: var(--dim); opacity: 0.7; }
+/* Last-frame thumbnail shown automatically next to a video result */
+.lastframe-thumb {
+  position: absolute;
+  right: 10px;
+  bottom: 10px;
+  width: 96px;
+  display: block;
+  border: 2px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--panel-2);
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(0,0,0,0.5);
+  text-decoration: none;
+}
+.lastframe-thumb img { display: block; width: 100%; height: auto; }
+.lastframe-thumb span {
+  display: block;
+  font-size: 10px;
+  color: var(--dim);
+  text-align: center;
+  padding: 3px 0;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+.lastframe-thumb:hover { border-color: var(--accent); }
 .freebtn {
   background: var(--panel-2);
   border: 1px solid var(--border);
@@ -268,6 +315,9 @@ textarea::placeholder, input::placeholder { color: #565b6e; }
 .batch-actions .primary { flex: 1; }
 .batch-actions .ghost { flex: 0 0 auto; }
 #addToQueue { border-style: dashed; }
+.sb-override { display: flex; align-items: center; gap: 6px; flex: 0 0 auto; font-size: 12px; opacity: .85; white-space: nowrap; }
+.sb-override input[type="number"] { width: 56px; }
+.sb-override:hover { opacity: 1; }
 
 .queue { display: flex; flex-direction: column; gap: 6px; max-height: 320px; overflow-y: auto; }
 .queue:empty::after {
@@ -311,6 +361,18 @@ textarea::placeholder, input::placeholder { color: #565b6e; }
   overflow: hidden;
   text-overflow: ellipsis;
 }
+.q-name {
+  width: 100%;
+  margin-top: 4px;
+  font-size: 11px;
+  color: var(--text);
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 3px 6px;
+}
+.q-name:focus { outline: none; border-color: var(--accent); }
+.q-name:disabled { opacity: 0.6; }
 .q-status { font-size: 11px; color: var(--dim); margin-top: 2px; }
 .q-status.rendering { color: var(--accent-2); }
 .q-status.done { color: var(--ok); }
@@ -326,6 +388,42 @@ textarea::placeholder, input::placeholder { color: #565b6e; }
   border-radius: 6px;
 }
 .q-del:hover { color: var(--danger); background: rgba(255, 93, 108, 0.1); }
+
+/* ---- Super Batch ---- */
+/* In super mode the per-shot manual controls are irrelevant — each dropped file carries
+   its own prompt/count/format/folder. Hide them; keep workflow, save folder, tabs, super UI. */
+.mode-super #imageField,
+.mode-super #imageField2,
+.mode-super #positiveField,
+.mode-super #negativeField,
+.mode-super #sizeField,
+.mode-super #denoiseField,
+.mode-super #resolutionField,
+.mode-super #framesField,
+.mode-super #fpsField,
+.mode-super #exportFormatField,
+.mode-super #stepsField,
+.mode-super #cfgField,
+.mode-super #samplerField,
+.mode-super #schedulerField,
+.mode-super #toggles,
+.mode-super label.field:has(#prefix) { display: none; }
+
+.sb-list { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
+.sb-item {
+  display: flex; gap: 10px; align-items: flex-start;
+  background: var(--panel-2); border: 1px solid var(--border);
+  border-radius: 8px; padding: 8px 10px;
+}
+.sb-main { flex: 1; min-width: 0; }
+.sb-name { font-size: 12px; color: var(--text); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sb-prompt { font-size: 11px; color: var(--dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sb-meta { font-size: 10px; color: var(--accent-2); margin-top: 3px; letter-spacing: 0.3px; }
+.sb-del {
+  flex: 0 0 auto; background: transparent; border: none; color: var(--dim);
+  font-size: 16px; cursor: pointer; padding: 2px 6px; border-radius: 6px;
+}
+.sb-del:hover { color: var(--danger); background: rgba(255, 93, 108, 0.1); }
 .spinner {
   width: 16px;
   height: 16px;
