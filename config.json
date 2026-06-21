@@ -101,6 +101,7 @@
     {
       "id": "qwen-image-edit-2511",
       "name": "Qwen Image Edit 2511",
+      "target": "runpod",
       "type": "text2img-img",
       "template": "server/workflows/qwen-image-edit-2511.json",
       "promptMode": "positive-negative",
@@ -220,7 +221,7 @@
       "toggles": [
         { "key": "fast", "label": "Lightning LoRA 4-step (veloce)", "node": "128:129", "field": "value", "default": true }
       ],
-      "defaults": { "width": 480, "height": 848, "frames": 81, "fps": 32, "shift": 3, "loraHigh": 1.0, "steps": 8, "stepsBoundaryRatio": 0.5 }
+      "defaults": { "width": 480, "height": 848, "frames": 81, "fps": 32, "shift": 4, "loraHigh": 1.0, "steps": 8, "stepsBoundaryRatio": 0.5 }
     },
     {
       "id": "wan2.2-t2v-hq",

@@ -44,6 +44,10 @@ const el = {
   exportFormat: $("exportFormat"),
   exportFormatField: $("exportFormatField"),
   saveDir: $("saveDir"),
+  pickFolder: $("pickFolder"),
+  helpBtn: $("helpBtn"),
+  helpModal: $("helpModal"),
+  helpClose: $("helpClose"),
   steps: $("steps"),
   cfg: $("cfg"),
   width: $("width"),
@@ -54,6 +58,8 @@ const el = {
   resolutionField: $("resolutionField"),
   frames: $("frames"),
   framesField: $("framesField"),
+  secsSlider: $("secsSlider"),
+  secsLabel: $("secsLabel"),
   fps: $("fps"),
   fpsField: $("fpsField"),
   duration: $("duration"),
@@ -373,8 +379,11 @@ function applyWorkflow(id, applyDefaults) {
   // pass (GAN upscale, no seed field) ignores the seed, and re-running it N times yields N
   // identical files — so hide both and pin count to 1.
   el.seedField.classList.toggle("hidden", has.seed === false);
-  el.countField.classList.toggle("hidden", has.seed === false);
-  if (has.seed === false) el.count.value = "1";
+  // "Images per prompt" is hidden for deterministic passes (no seed) AND for text-to-video,
+  // where batching multiple clips per prompt isn't wanted.
+  const noCount = has.seed === false || currentWorkflow.type === "text2vid";
+  el.countField.classList.toggle("hidden", noCount);
+  if (noCount) el.count.value = "1";
   // Show the workflow's real save prefix as the placeholder (used when the field is left blank).
   el.prefix.placeholder = currentWorkflow.defaultPrefix || currentWorkflow.id;
   el.sizeField.classList.toggle("hidden", !has.width);
@@ -384,6 +393,8 @@ function applyWorkflow(id, applyDefaults) {
   el.loraHighField.classList.toggle("hidden", !has.loraHigh);
   el.framesField.classList.toggle("hidden", !has.frames);
   el.fpsField.classList.toggle("hidden", !has.fps);
+  // The WAN-video notes "?" is specific to that workflow for now — show it only there.
+  el.helpBtn.classList.toggle("hidden", currentWorkflow.id !== "wan2.2-t2v");
   // Export format chooser (mp4 / PNG sequence) — only for workflows that support it (img2vid).
   el.exportFormatField.classList.toggle("hidden", !currentWorkflow.exportChoice);
   // Per-workflow minimum steps (WAN needs >= 15 or its high/low-noise split breaks).
@@ -418,6 +429,7 @@ function applyWorkflow(id, applyDefaults) {
   }
   updateConditionalControls();
   syncDenoiseRange();
+  syncSecsFromFrames();
   persist();
 }
 
@@ -447,6 +459,57 @@ function updateConditionalControls() {
   // non-sampler workflow (GAN upscale) has no steps field — hide the dead control there.
   el.stepsField.classList.toggle("hidden", !has.steps);
 }
+
+// ---- Duration slider (1–5 s) ----
+// Video length is driven by a seconds slider; WAN needs frame counts on the 4k+1 grid (its
+// native 16fps clip lengths). The slider is the visible control; `#frames` stays the hidden
+// source of truth that save/restore and the request body already read.
+const FRAMES_BY_SEC = { 1: 17, 2: 33, 3: 49, 4: 65, 5: 81 };
+function framesForSecs(s) { return FRAMES_BY_SEC[s] || 81; }
+function secsForFrames(f) {
+  const n = Number(f);
+  for (const s of [1, 2, 3, 4, 5]) if (FRAMES_BY_SEC[s] === n) return s;
+  return 5; // off-grid (e.g. a legacy value) → default to 5s
+}
+// Slider moved → set frames + label.
+function applySecsSlider() {
+  const s = Number(el.secsSlider.value);
+  el.frames.value = framesForSecs(s);
+  el.secsLabel.textContent = `${s} s · ${el.frames.value} frames`;
+  persist();
+}
+// frames changed elsewhere (workflow default / restore) → move slider + label to match.
+function syncSecsFromFrames() {
+  const s = secsForFrames(el.frames.value);
+  el.secsSlider.value = String(s);
+  el.secsLabel.textContent = `${s} s · ${FRAMES_BY_SEC[s]} frames`;
+}
+el.secsSlider.addEventListener("input", applySecsSlider);
+
+// ---- Help modal (WAN video notes) ----
+function toggleHelp(show) { el.helpModal.classList.toggle("hidden", !show); }
+el.helpBtn.addEventListener("click", () => toggleHelp(true));
+el.helpClose.addEventListener("click", () => toggleHelp(false));
+el.helpModal.addEventListener("click", (e) => { if (e.target === el.helpModal) toggleHelp(false); });
+document.addEventListener("keydown", (e) => { if (e.key === "Escape") toggleHelp(false); });
+
+// ---- Folder picker (native Finder dialog via the local server) ----
+el.pickFolder.addEventListener("click", async () => {
+  el.pickFolder.disabled = true;
+  try {
+    const r = await fetch("/api/pick-folder", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ current: el.saveDir.value }),
+    });
+    const d = await r.json();
+    if (d.path) {
+      el.saveDir.value = d.path;
+      persist();
+    }
+  } catch {}
+  el.pickFolder.disabled = false;
+});
 
 el.modeSelect.addEventListener("change", () => setMode(el.modeSelect.value));
 el.workflow.addEventListener("change", () => applyWorkflow(el.workflow.value, true));
@@ -582,6 +645,7 @@ async function init() {
   syncPreset();
   syncDenoiseRange();
   updateConditionalControls();
+  syncSecsFromFrames();
   refreshHealth();
 }
 
@@ -817,10 +881,7 @@ function needsImageButMissing() {
     toast("Carica un'immagine di input prima");
     return true;
   }
-  if (has.image2 && !imgSlot("image2").uploaded) {
-    toast("Carica anche la seconda immagine");
-    return true;
-  }
+  // 2nd image is OPTIONAL: if omitted the server runs single-image edit (drops the 2nd LoadImage).
   return false;
 }
 
@@ -981,6 +1042,7 @@ function loadParams(p) {
   persist();
   syncPreset();
   syncDenoiseRange();
+  syncSecsFromFrames();
 }
 
 // ---- History (session only) ----

@@ -4,7 +4,11 @@ import { existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import { homedir } from "node:os";
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
 import { ComfyClient } from "./comfy.js";
+
+const execFileP = promisify(execFile);
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const root = join(__dirname, "..");
@@ -28,6 +32,17 @@ async function loadConfig() {
   for (const wf of targetWorkflowDefs) {
     const template = JSON.parse(await readFile(join(root, wf.template), "utf8"));
     workflows.set(wf.id, { ...wf, template });
+    // Guard: a WAN template must not mix i2v diffusion models with t2v speed-LoRAs (or vice
+    // versa). That copy-paste mismatch fails silently at render with "Value not in list:
+    // lora_name ...". Warn loudly at load so it never ships unnoticed again.
+    const blob = JSON.stringify(template);
+    const modelType = /(i2v|t2v)_(?:high|low)_noise_14B/.exec(blob)?.[1];
+    const loraType = /wan2\.2_(i2v|t2v)_lightx2v/.exec(blob)?.[1];
+    if (modelType && loraType && modelType !== loraType) {
+      console.warn(
+        `⚠️  [${wf.id}] LORA/MODEL MISMATCH: diffusion=${modelType} ma lora=${loraType} — il render fallirà ("Value not in list"). Correggi i nomi lora in ${wf.template}`,
+      );
+    }
   }
   defaultWorkflowId =
     targetWorkflowDefs.find((w) => w.id === config.defaultWorkflow)?.id || targetWorkflowDefs[0]?.id;
@@ -373,8 +388,21 @@ app.post("/api/generate", async (req, res) => {
       setField(graph, f.image, String(image));
     }
     if (f.image2) {
-      if (!image2) return res.status(400).json({ error: "This workflow needs a second image." });
-      setField(graph, f.image2, String(image2));
+      if (image2) {
+        setField(graph, f.image2, String(image2));
+      } else {
+        // 2nd image is OPTIONAL: none given → drop its LoadImage node and any input wired to it
+        // (e.g. the encoder's image2), so the edit runs single-image instead of failing on a
+        // missing file. API-format equivalent of bypassing the 2nd LoadImage node.
+        const n2 = String(f.image2.node);
+        delete graph[n2];
+        for (const node of Object.values(graph)) {
+          if (!node || typeof node.inputs !== "object") continue;
+          for (const [k, v] of Object.entries(node.inputs)) {
+            if (Array.isArray(v) && String(v[0]) === n2) delete node.inputs[k];
+          }
+        }
+      }
     }
     if (prefix && String(prefix).trim()) setField(graph, f.prefix, String(prefix).trim());
 
@@ -549,6 +577,22 @@ app.post("/api/reload", async (req, res) => {
     res.json({ ok: true, target: TARGET, workflows: targetWorkflowDefs.length });
   } catch (e) {
     res.status(500).json({ error: String(e.message || e) });
+  }
+});
+
+// Open a native macOS folder picker (the server runs on the Mac, so the Finder dialog appears
+// on screen). Returns the chosen POSIX path, or { canceled: true } if dismissed. Browsers can't
+// hand a real filesystem path to the server, so this native dialog is the way to do it.
+app.post("/api/pick-folder", async (req, res) => {
+  try {
+    const cur = expandHome(String(req.body?.current || "").trim());
+    const defaultClause = cur && existsSync(cur) ? ` default location (POSIX file ${JSON.stringify(cur)})` : "";
+    const script = `POSIX path of (choose folder with prompt "Scegli la cartella di salvataggio"${defaultClause})`;
+    const { stdout } = await execFileP("osascript", ["-e", "tell application \"System Events\" to activate", "-e", script]);
+    res.json({ path: stdout.trim().replace(/\/$/, "") });
+  } catch (e) {
+    // user canceled (-128) or no GUI available — not a real error
+    res.json({ canceled: true });
   }
 });
 

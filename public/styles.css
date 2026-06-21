@@ -156,7 +156,10 @@ html, body {
 }
 
 /* ---- Controls ---- */
-.controls { display: flex; flex-direction: column; gap: 16px; }
+.controls { display: flex; flex-direction: column; gap: 20px; }
+/* The actual fields live inside #genArea (a plain div), so the spacing between them must be
+   set here — not on .controls, whose gap only separates Mode / emptyMode / genArea. */
+#genArea { display: flex; flex-direction: column; gap: 18px; }
 .field { display: flex; flex-direction: column; gap: 7px; }
 .label { font-size: 12px; color: var(--dim); font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
 
@@ -214,6 +217,43 @@ textarea::placeholder, input::placeholder { color: #565b6e; }
 
 .slider-row { display: flex; align-items: center; gap: 10px; }
 .slider-row input[type="range"] { flex: 1; accent-color: var(--accent); cursor: pointer; }
+#secsSlider { width: 100%; accent-color: var(--accent); cursor: pointer; margin-top: 4px; }
+.savedir-row { display: flex; gap: 8px; align-items: stretch; }
+.savedir-row input { flex: 1; }
+.savedir-row button { white-space: nowrap; }
+
+/* Inline help link (shown only for the WAN t2v workflow) + notes modal */
+.help-inline {
+  align-self: flex-start; background: none; border: none; padding: 0;
+  color: var(--dim); font-size: 12px; cursor: pointer; text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.help-inline:hover { color: var(--accent); }
+.modal-overlay {
+  position: fixed; inset: 0; background: rgba(0, 0, 0, 0.6); z-index: 100;
+  display: flex; align-items: center; justify-content: center; padding: 24px;
+}
+.modal {
+  background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius);
+  max-width: 560px; width: 100%; max-height: 85vh; display: flex; flex-direction: column;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+}
+.modal-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 16px 20px; border-bottom: 1px solid var(--border);
+}
+.modal-head h2 { margin: 0; font-size: 15px; }
+.modal-close {
+  background: none; border: none; color: var(--dim); font-size: 22px; line-height: 1;
+  cursor: pointer; padding: 0 4px;
+}
+.modal-close:hover { color: var(--text); }
+.modal-body { padding: 8px 20px 20px; overflow-y: auto; font-size: 13px; line-height: 1.5; }
+.modal-body h3 { font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--accent); margin: 16px 0 6px; }
+.modal-body ul { margin: 0; padding-left: 18px; color: var(--text); }
+.modal-body li { margin: 3px 0; }
+.modal-body b { color: #fff; }
+.modal-foot { margin: 18px 0 0; padding: 10px 12px; background: var(--panel-2); border-radius: 8px; color: var(--text); }
 .slider-row input[type="number"] { width: 72px; flex: 0 0 auto; text-align: center; }
 
 .size-row { display: flex; align-items: center; gap: 8px; }

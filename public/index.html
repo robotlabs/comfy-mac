@@ -66,10 +66,10 @@
           </div>
 
           <div class="field hidden" id="imageField2">
-            <span class="label">Image 2 (reference)</span>
+            <span class="label">Image 2 (reference — optional)</span>
             <div class="dropzone" id="dropzone2">
               <input type="file" id="imageInput2" accept="image/*" hidden />
-              <span class="dz-hint" id="dzHint2">Drop a second image here, or click to choose</span>
+              <span class="dz-hint" id="dzHint2">Optional 2nd image — leave empty for single-image edit</span>
               <img id="imagePreview2" class="hidden" alt="input2" />
               <button type="button" id="imageClear2" class="dz-clear hidden" title="Remove image">×</button>
             </div>
@@ -157,25 +157,36 @@
 
         <div class="grid2">
           <label class="field hidden" id="shiftField">
-            <span class="label">Shift <span class="dim">(↓ = più movimento)</span></span>
+            <span class="label">Shift</span>
             <input type="number" id="shift" min="1" max="10" step="0.5" />
           </label>
           <label class="field hidden" id="loraHighField">
-            <span class="label">LoRA high <span class="dim">(↓ = più movimento)</span></span>
+            <span class="label">LoRA high</span>
             <input type="number" id="loraHigh" min="0" max="2" step="0.05" />
           </label>
         </div>
 
+        <label class="field hidden" id="framesField">
+          <span class="label">Durata <span class="dim" id="secsLabel"></span></span>
+          <input type="range" id="secsSlider" min="1" max="5" step="1" value="5" />
+          <input type="hidden" id="frames" />
+        </label>
         <div class="grid2">
-          <label class="field hidden" id="framesField">
-            <span class="label">Frames</span>
-            <input type="number" id="frames" min="1" />
-          </label>
           <label class="field hidden" id="fpsField">
-            <span class="label">FPS <span class="dim">(lascia il default: i2v 54 con RIFE · t2v 24 nativo)</span></span>
+            <span class="label">FPS</span>
             <input type="number" id="fps" min="1" step="1" />
           </label>
+          <label class="field" id="stepsField">
+            <span class="label">Steps</span>
+            <input type="number" id="steps" min="1" max="100" />
+          </label>
         </div>
+        <label class="field" id="cfgField">
+          <span class="label">CFG</span>
+          <input type="number" id="cfg" step="0.1" min="0" />
+        </label>
+
+        <button type="button" id="helpBtn" class="help-inline hidden">? Note WAN video — frame · fps · shift · steps</button>
 
         <label class="field hidden" id="exportFormatField">
           <span class="label">Export</span>
@@ -193,19 +204,11 @@
 
         <label class="field">
           <span class="label">Save to (folder on this Mac)</span>
-          <input type="text" id="saveDir" placeholder="~/Pictures/comfy-mac" />
+          <div class="savedir-row">
+            <input type="text" id="saveDir" placeholder="~/Pictures/comfy-mac" />
+            <button type="button" id="pickFolder" class="toggle" title="Scegli la cartella dal Finder">📁 Sfoglia</button>
+          </div>
         </label>
-
-        <div class="grid2">
-          <label class="field" id="stepsField">
-            <span class="label">Steps</span>
-            <input type="number" id="steps" min="1" max="100" />
-          </label>
-          <label class="field" id="cfgField">
-            <span class="label">CFG</span>
-            <input type="number" id="cfg" step="0.1" min="0" />
-          </label>
-        </div>
 
           <label class="field" id="samplerField">
             <span class="label">Sampler</span>
@@ -298,6 +301,52 @@
     </main>
 
     <div class="toast hidden" id="toast"></div>
+
+    <div class="modal-overlay hidden" id="helpModal">
+      <div class="modal">
+        <div class="modal-head">
+          <h2>Note WAN video — frame, velocità & moto</h2>
+          <button type="button" id="helpClose" class="modal-close" title="Chiudi">×</button>
+        </div>
+        <div class="modal-body">
+          <h3>Frames = durata (regola 4k+1, nativo 16 fps)</h3>
+          <ul>
+            <li><b>17</b>=1s · <b>33</b>=2s · <b>49</b>=3s · <b>65</b>=4s · <b>81</b>=5s. Lo slider Durata li imposta da solo.</li>
+            <li>Max ~5s a clip. Oltre 81 frame il modello fa ping-pong / deforma → servirebbe un workflow SVI (finestre scorrevoli).</li>
+            <li>Wan NON allunga il tempo se aggiungi frame: distribuisce la stessa azione su più frame.</li>
+          </ul>
+          <h3>FPS = solo riproduzione (non tocca il moto)</h3>
+          <ul>
+            <li>Pipeline: 16 nativi × <b>RIFE ×2 = 32</b>. Tienilo fisso a 32. RIFE liscia, non crea movimento.</li>
+            <li>(I 24 fps sono di un altro modello, il 5B TI2V — non il nostro 14B.)</li>
+          </ul>
+          <h3>Shift = ritmo del moto</h3>
+          <ul>
+            <li><b>Troppo alto</b> = frame quasi identici = moto congelato / slow-mo.</li>
+            <li><b>~3</b> risolve lo slow-mo; <b>4</b> toglie l'accelerazione di fine clip. Default: <b>4</b>.</li>
+          </ul>
+          <h3>Steps = qualità + uniformità del moto</h3>
+          <ul>
+            <li><b>8</b> (split 4/4 tra i due esperti high/low) = minimo sano per la lightning 4-step. Default: <b>8</b>.</li>
+            <li>Più step (10/12) = moto più uniforme ma più lento. Meno (4) = peggiora, NON usare.</li>
+          </ul>
+          <h3>Lightning LoRA</h3>
+          <ul>
+            <li>Usiamo la LoRA <b>i2v</b> sul modello t2v (muove meglio della t2v).</li>
+            <li><b>LoRA high ↓</b> (es. 0.5) = più movimento — rescue solo se il moto è debole.</li>
+          </ul>
+          <h3>Accelera verso la fine?</h3>
+          <ul>
+            <li>È il budget di step non uniforme della lightning → alza gli <b>steps</b> o porta lo <b>shift a 4</b>.</li>
+          </ul>
+          <h3>Taratura: regola d'oro</h3>
+          <ul>
+            <li><b>Seed FISSO</b> mentre tari (random = scena diversa, non confrontabile). Cambia un solo parametro per volta.</li>
+          </ul>
+          <p class="modal-foot"><b>Default t2v bloccato:</b> 8 step · shift 4 · LoRA high 1.0 · 81 frame · 32 fps · 480×848.</p>
+        </div>
+      </div>
+    </div>
 
     <script src="app.js"></script>
   </body>
