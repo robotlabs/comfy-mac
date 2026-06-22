@@ -323,6 +323,7 @@ app.get("/api/config", (req, res) => {
         duration: !!w.fields.duration,
         shift: !!w.fields.shift,
         loraHigh: !!w.fields.loraHigh,
+        loraLow: !!w.fields.loraLow,
       },
       };
     }),
@@ -371,6 +372,7 @@ app.post("/api/generate", async (req, res) => {
       duration,
       shift,
       loraHigh,
+      loraLow,
       prefix,
       saveDir,
     } = req.body;
@@ -430,6 +432,7 @@ app.post("/api/generate", async (req, res) => {
     if (duration) setField(graph, f.duration, Number(duration));
     if (shift !== undefined && shift !== "") setField(graph, f.shift, Number(shift));
     if (loraHigh !== undefined && loraHigh !== "") setField(graph, f.loraHigh, Number(loraHigh));
+    if (loraLow !== undefined && loraLow !== "") setField(graph, f.loraLow, Number(loraLow));
 
     // VRAM-safe auto-engage for high-res video, split by cost:
     //  - VAE tiling (tilingThreshold): cheap on time, big OOM help at the decode — engage early.

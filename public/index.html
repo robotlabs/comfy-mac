@@ -126,6 +126,9 @@
           </div>
           <select id="presets" title="Aspect-ratio presets">
             <option value="custom">Custom</option>
+            <option data-w="480" data-h="848">Small portrait · 480×848</option>
+            <option data-w="848" data-h="480">Small landscape · 848×480</option>
+            <option data-w="720" data-h="1280">HD portrait · 720×1280</option>
             <option data-w="1080" data-h="1920">IG story · 1080×1920</option>
             <option data-w="1080" data-h="1350">IG post · 1080×1350</option>
             <option data-w="1080" data-h="1080">IG square · 1080×1080</option>
@@ -156,20 +159,32 @@
         </label>
 
         <div class="grid2">
+          <label class="field hidden" id="loraHighField">
+            <span class="label">LoRA high</span>
+            <input type="number" id="loraHigh" min="0" max="8" step="0.05" />
+          </label>
+          <label class="field hidden" id="loraLowField">
+            <span class="label">LoRA low</span>
+            <input type="number" id="loraLow" min="0" max="8" step="0.05" />
+          </label>
+        </div>
+        <div class="grid2">
           <label class="field hidden" id="shiftField">
             <span class="label">Shift</span>
             <input type="number" id="shift" min="1" max="10" step="0.5" />
           </label>
-          <label class="field hidden" id="loraHighField">
-            <span class="label">LoRA high</span>
-            <input type="number" id="loraHigh" min="0" max="2" step="0.05" />
+          <label class="field" id="cfgField">
+            <span class="label">CFG</span>
+            <input type="number" id="cfg" step="0.1" min="0" />
           </label>
         </div>
 
         <label class="field hidden" id="framesField">
-          <span class="label">Durata <span class="dim" id="secsLabel"></span></span>
-          <input type="range" id="secsSlider" min="1" max="5" step="1" value="5" />
-          <input type="hidden" id="frames" />
+          <span class="label">Frames <span class="dim" id="secsLabel"></span></span>
+          <div class="frames-row">
+            <input type="range" id="secsSlider" min="1" max="5" step="1" value="5" />
+            <input type="number" id="frames" min="1" step="2" />
+          </div>
         </label>
         <div class="grid2">
           <label class="field hidden" id="fpsField">
@@ -181,10 +196,6 @@
             <input type="number" id="steps" min="1" max="100" />
           </label>
         </div>
-        <label class="field" id="cfgField">
-          <span class="label">CFG</span>
-          <input type="number" id="cfg" step="0.1" min="0" />
-        </label>
 
         <button type="button" id="helpBtn" class="help-inline hidden">? Note WAN video — frame · fps · shift · steps</button>
 

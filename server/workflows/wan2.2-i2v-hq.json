@@ -133,11 +133,11 @@
   },
   "129:131": {
     "inputs": {
-      "value": true
+      "value": false
     },
     "class_type": "PrimitiveBoolean",
     "_meta": {
-      "title": "Enable 4steps LoRA?"
+      "title": "Enable 4steps LoRA? (HQ: baked OFF = no lora)"
     }
   },
   "129:90": {
@@ -273,7 +273,7 @@
         "129:119",
         0
       ],
-      "cfg": 1.0,
+      "cfg": 3.5,
       "sampler_name": "euler",
       "scheduler": "simple",
       "start_at_step": [

@@ -217,7 +217,9 @@ textarea::placeholder, input::placeholder { color: #565b6e; }
 
 .slider-row { display: flex; align-items: center; gap: 10px; }
 .slider-row input[type="range"] { flex: 1; accent-color: var(--accent); cursor: pointer; }
-#secsSlider { width: 100%; accent-color: var(--accent); cursor: pointer; margin-top: 4px; }
+.frames-row { display: flex; gap: 10px; align-items: center; }
+.frames-row #secsSlider { flex: 1; accent-color: var(--accent); cursor: pointer; }
+.frames-row #frames { width: 90px; }
 .savedir-row { display: flex; gap: 8px; align-items: stretch; }
 .savedir-row input { flex: 1; }
 .savedir-row button { white-space: nowrap; }

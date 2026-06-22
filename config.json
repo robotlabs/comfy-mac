@@ -181,19 +181,52 @@
         "seed":     { "node": "129:86", "field": "noise_seed" },
         "width":    { "node": "129:98", "field": "width" },
         "height":   { "node": "129:98", "field": "height" },
-        "duration": { "node": "129:161", "field": "value" },
+        "frames":   { "node": "129:98", "field": "length" },
         "fps":      { "node": "129:94", "field": "fps" },
+        "cfg":      { "node": "129:86", "field": "cfg" },
+        "steps":    { "node": "129:118", "field": "value" },
+        "stepsBoundary": { "node": "129:124", "field": "value" },
         "shift": [
           { "node": "129:103", "field": "shift" },
           { "node": "129:104", "field": "shift" }
         ],
         "loraHigh": { "node": "129:101", "field": "strength_model" },
+        "loraLow":  { "node": "129:102", "field": "strength_model" },
         "prefix":   { "node": "108", "field": "filename_prefix" }
       },
       "toggles": [
         { "key": "fast", "label": "Lightning LoRA 4-step (veloce)", "node": "129:131", "field": "value", "default": true }
       ],
-      "defaults": { "width": 720, "height": 1280, "duration": 5, "fps": 54, "shift": 5, "loraHigh": 1.0 }
+      "defaults": { "width": 720, "height": 1280, "frames": 81, "fps": 64, "cfg": 1.0, "shift": 4, "loraHigh": 1.0, "loraLow": 1.0, "steps": 8, "stepsBoundaryRatio": 0.5 }
+    },
+    {
+      "id": "wan2.2-i2v-hq",
+      "name": "WAN 2.2 Image→Video · HQ (no-lora, 5s moto vero)",
+      "type": "img2vid",
+      "target": "runpod",
+      "template": "server/workflows/wan2.2-i2v-hq.json",
+      "promptMode": "positive-negative",
+      "fields": {
+        "image":    { "node": "97", "field": "image" },
+        "positive": { "node": "129:93", "field": "text" },
+        "negative": { "node": "129:89", "field": "text" },
+        "seed":     { "node": "129:86", "field": "noise_seed" },
+        "width":    { "node": "129:98", "field": "width" },
+        "height":   { "node": "129:98", "field": "height" },
+        "frames":   { "node": "129:98", "field": "length" },
+        "fps":      { "node": "129:94", "field": "fps" },
+        "cfg": [
+          { "node": "129:86", "field": "cfg" },
+          { "node": "129:85", "field": "cfg" }
+        ],
+        "shift": [
+          { "node": "129:103", "field": "shift" },
+          { "node": "129:104", "field": "shift" }
+        ],
+        "prefix":   { "node": "108", "field": "filename_prefix" }
+      },
+      "defaultNegative": "deformed, mutated hands, extra fingers, extra arms, extra limbs, distorted face, bad anatomy, blurry, low quality, jpeg artifacts, watermark, text, multiple people, second person, duplicate body, melting clothes, floating limbs, static, still, motionless, frozen, slow motion, time-lapse, stutter",
+      "defaults": { "width": 480, "height": 848, "frames": 81, "fps": 32, "cfg": 3.5, "shift": 5 }
     },
     {
       "id": "wan2.2-t2v",

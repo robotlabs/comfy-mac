@@ -68,6 +68,8 @@ const el = {
   shiftField: $("shiftField"),
   loraHigh: $("loraHigh"),
   loraHighField: $("loraHighField"),
+  loraLow: $("loraLow"),
+  loraLowField: $("loraLowField"),
   resultVideo: $("resultVideo"),
   tabs: $("tabs"),
   controls: $("controls"),
@@ -201,6 +203,7 @@ if (saved.frames) el.frames.value = saved.frames;
 if (saved.duration) el.duration.value = saved.duration;
 if (saved.shift) el.shift.value = saved.shift;
 if (saved.loraHigh) el.loraHigh.value = saved.loraHigh;
+if (saved.loraLow) el.loraLow.value = saved.loraLow;
 if (saved.fps) el.fps.value = saved.fps;
 if (saved.exportFormat) el.exportFormat.value = saved.exportFormat;
 if (saved.randomize === false) setRandomize(false);
@@ -231,6 +234,7 @@ function persist() {
       duration: el.duration.value,
       shift: el.shift.value,
       loraHigh: el.loraHigh.value,
+      loraLow: el.loraLow.value,
       randomize,
       mode: currentMode,
       workflow: currentWorkflow?.id,
@@ -391,6 +395,7 @@ function applyWorkflow(id, applyDefaults) {
   el.durationField.classList.toggle("hidden", !has.duration);
   el.shiftField.classList.toggle("hidden", !has.shift);
   el.loraHighField.classList.toggle("hidden", !has.loraHigh);
+  el.loraLowField.classList.toggle("hidden", !has.loraLow);
   el.framesField.classList.toggle("hidden", !has.frames);
   el.fpsField.classList.toggle("hidden", !has.fps);
   // The WAN-video notes "?" is specific to that workflow for now — show it only there.
@@ -408,6 +413,7 @@ function applyWorkflow(id, applyDefaults) {
   if (wd0.frames != null) el.frames.value = wd0.frames;
   if (wd0.shift != null) el.shift.value = wd0.shift;
   if (wd0.loraHigh != null) el.loraHigh.value = wd0.loraHigh;
+  if (wd0.loraLow != null) el.loraLow.value = wd0.loraLow;
   if ((parseInt(el.steps.value) || 0) < el.steps.min) el.steps.value = el.steps.min;
   renderToggles();
 
@@ -424,6 +430,7 @@ function applyWorkflow(id, applyDefaults) {
     if (d.duration != null) el.duration.value = d.duration;
     if (d.shift != null) el.shift.value = d.shift;
     if (d.loraHigh != null) el.loraHigh.value = d.loraHigh;
+    if (d.loraLow != null) el.loraLow.value = d.loraLow;
     if (d.fps != null) el.fps.value = d.fps;
     syncPreset();
   }
@@ -471,20 +478,27 @@ function secsForFrames(f) {
   for (const s of [1, 2, 3, 4, 5]) if (FRAMES_BY_SEC[s] === n) return s;
   return 5; // off-grid (e.g. a legacy value) → default to 5s
 }
-// Slider moved → set frames + label.
+// Label shows the real frame count; adds "· N s" only when it lands on a 4k+1 preset.
+function framesLabel() {
+  const f = Number(el.frames.value) || 0;
+  const s = secsForFrames(f);
+  el.secsLabel.textContent = FRAMES_BY_SEC[s] === f ? `${s} s · ${f} frames` : `${f} frames`;
+}
+// Slider preset → set the frame count.
 function applySecsSlider() {
-  const s = Number(el.secsSlider.value);
-  el.frames.value = framesForSecs(s);
-  el.secsLabel.textContent = `${s} s · ${el.frames.value} frames`;
+  el.frames.value = framesForSecs(Number(el.secsSlider.value));
+  framesLabel();
   persist();
 }
-// frames changed elsewhere (workflow default / restore) → move slider + label to match.
+// frames typed/restored → align slider if it's a preset, refresh label.
 function syncSecsFromFrames() {
-  const s = secsForFrames(el.frames.value);
-  el.secsSlider.value = String(s);
-  el.secsLabel.textContent = `${s} s · ${FRAMES_BY_SEC[s]} frames`;
+  const f = Number(el.frames.value);
+  const s = secsForFrames(f);
+  if (FRAMES_BY_SEC[s] === f) el.secsSlider.value = String(s);
+  framesLabel();
 }
 el.secsSlider.addEventListener("input", applySecsSlider);
+el.frames.addEventListener("input", () => { syncSecsFromFrames(); persist(); });
 
 // ---- Help modal (WAN video notes) ----
 function toggleHelp(show) { el.helpModal.classList.toggle("hidden", !show); }
@@ -843,6 +857,7 @@ function buildBody(positive, negative, seed, prefixOverride) {
     duration: el.duration.value,
     shift: el.shift.value,
     loraHigh: el.loraHigh.value,
+    loraLow: el.loraLow.value,
     toggles: { ...toggleState },
     exportFormat: el.exportFormat.value,
   };
@@ -868,6 +883,7 @@ function paramsFrom(body, seed) {
     duration: body.duration,
     shift: body.shift,
     loraHigh: body.loraHigh,
+    loraLow: body.loraLow,
     toggles: body.toggles,
     prefix: body.prefix,
     seed,
@@ -1034,6 +1050,7 @@ function loadParams(p) {
   if (p.duration) el.duration.value = p.duration;
   if (p.shift) el.shift.value = p.shift;
   if (p.loraHigh) el.loraHigh.value = p.loraHigh;
+  if (p.loraLow) el.loraLow.value = p.loraLow;
   if (p.fps) el.fps.value = p.fps;
   if (p.seed != null) {
     el.seed.value = p.seed;
