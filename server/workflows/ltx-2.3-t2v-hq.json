@@ -111,7 +111,7 @@
         0
       ],
       "sigmas": [
-        "267:252",
+        "267:900",
         0
       ],
       "latent_image": [
@@ -569,7 +569,7 @@
   },
   "267:231": {
     "inputs": {
-      "cfg": 1.0,
+      "cfg": 1.8,
       "model": [
         "267:232",
         0
@@ -630,7 +630,7 @@
   },
   "267:266": {
     "inputs": {
-      "value": "Dynamic cinematic close-up of high-tech modular machinery self-assembling in midair, precision robotic parts, magnetic connectors, and glowing circuits clicking together, subtle smoke and light flares, extremely detailed titanium textures. The final product displays a clean, clear surface with large glowing engraved text \u201cLTX-2.3\u201d centered and unobstructed, dramatic lighting, photorealism, 8K, sharp focus.\n"
+      "value": "Dynamic cinematic close-up of high-tech modular machinery self-assembling in midair, precision robotic parts, magnetic connectors, and glowing circuits clicking together, subtle smoke and light flares, extremely detailed titanium textures. The final product displays a clean, clear surface with large glowing engraved text “LTX-2.3” centered and unobstructed, dramatic lighting, photorealism, 8K, sharp focus.\n"
     },
     "class_type": "PrimitiveStringMultiline",
     "_meta": {
@@ -794,6 +794,23 @@
     "class_type": "SaveImage",
     "_meta": {
       "title": "Save Last Frame (PNG)"
+    }
+  },
+  "267:900": {
+    "inputs": {
+      "steps": 14,
+      "max_shift": 2.05,
+      "base_shift": 0.95,
+      "stretch": true,
+      "terminal": 0.1,
+      "latent": [
+        "267:228",
+        0
+      ]
+    },
+    "class_type": "LTXVScheduler",
+    "_meta": {
+      "title": "LTXVScheduler (HQ steps)"
     }
   }
 }

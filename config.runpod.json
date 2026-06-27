@@ -1,0 +1,1239 @@
+{
+  "comfy": {
+    "port": 8000,
+    "hosts": [
+      {
+        "label": "Home (LAN)",
+        "host": "192.168.1.194"
+      },
+      {
+        "label": "Remote (Tailscale)",
+        "host": "100.65.146.55"
+      },
+      {
+        "label": "RunPod",
+        "url": ""
+      }
+    ]
+  },
+  "server": {
+    "port": 4242
+  },
+  "output": {
+    "saveDirs": [
+      "/Users/roberto/io/local-labs/ai-comfy",
+      "~/Pictures/comfy-mac"
+    ]
+  },
+  "defaultWorkflow": "z-image-turbo",
+  "workflows": [
+    {
+      "id": "z-image-turbo",
+      "target": "both",
+      "name": "Z-Image Turbo",
+      "type": "text2img",
+      "template": "server/workflows-runpod/z-image-turbo.json",
+      "promptMode": "positive-negative",
+      "fields": {
+        "positive": {
+          "node": "104:90",
+          "field": "text"
+        },
+        "negative": {
+          "node": "104:109",
+          "field": "text"
+        },
+        "seed": {
+          "node": "104:92",
+          "field": "seed"
+        },
+        "steps": {
+          "node": "104:92",
+          "field": "steps"
+        },
+        "cfg": {
+          "node": "104:92",
+          "field": "cfg"
+        },
+        "sampler": {
+          "node": "104:92",
+          "field": "sampler_name"
+        },
+        "scheduler": {
+          "node": "104:92",
+          "field": "scheduler"
+        },
+        "denoise": {
+          "node": "104:92",
+          "field": "denoise"
+        },
+        "width": {
+          "node": "104:91",
+          "field": "width"
+        },
+        "height": {
+          "node": "104:91",
+          "field": "height"
+        },
+        "prefix": {
+          "node": "60",
+          "field": "filename_prefix"
+        }
+      },
+      "defaults": {
+        "steps": 4,
+        "cfg": 1.0,
+        "sampler": "res_multistep",
+        "scheduler": "simple",
+        "denoise": 1.0,
+        "width": 1080,
+        "height": 1920
+      }
+    },
+    {
+      "id": "flux-schnell",
+      "target": "both",
+      "name": "FLUX Schnell",
+      "type": "text2img",
+      "template": "server/workflows-runpod/flux-schnell.json",
+      "promptMode": "single",
+      "fields": {
+        "prompt": {
+          "node": "6",
+          "field": "text"
+        },
+        "seed": {
+          "node": "25",
+          "field": "noise_seed"
+        },
+        "steps": {
+          "node": "17",
+          "field": "steps"
+        },
+        "scheduler": {
+          "node": "17",
+          "field": "scheduler"
+        },
+        "denoise": {
+          "node": "17",
+          "field": "denoise"
+        },
+        "sampler": {
+          "node": "16",
+          "field": "sampler_name"
+        },
+        "width": {
+          "node": "5",
+          "field": "width"
+        },
+        "height": {
+          "node": "5",
+          "field": "height"
+        },
+        "prefix": {
+          "node": "9",
+          "field": "filename_prefix"
+        }
+      },
+      "defaults": {
+        "steps": 20,
+        "sampler": "euler",
+        "scheduler": "normal",
+        "denoise": 1.0,
+        "width": 1080,
+        "height": 1920
+      }
+    },
+    {
+      "id": "qwen-image-2512",
+      "target": "both",
+      "name": "Qwen-Image 2512",
+      "type": "text2img",
+      "template": "server/workflows-runpod/qwen-image-2512.json",
+      "promptMode": "positive-negative",
+      "fields": {
+        "positive": {
+          "node": "238:227",
+          "field": "text"
+        },
+        "negative": {
+          "node": "238:228",
+          "field": "text"
+        },
+        "seed": {
+          "node": "238:230",
+          "field": "seed"
+        },
+        "steps": {
+          "node": "238:224",
+          "field": "value"
+        },
+        "cfg": {
+          "node": "238:223",
+          "field": "value"
+        },
+        "sampler": {
+          "node": "238:230",
+          "field": "sampler_name"
+        },
+        "scheduler": {
+          "node": "238:230",
+          "field": "scheduler"
+        },
+        "width": {
+          "node": "238:232",
+          "field": "width"
+        },
+        "height": {
+          "node": "238:232",
+          "field": "height"
+        },
+        "prefix": {
+          "node": "60",
+          "field": "filename_prefix"
+        }
+      },
+      "toggles": [
+        {
+          "key": "fast",
+          "label": "4-step fast mode (Lightning LoRA)",
+          "node": "238:229",
+          "field": "value",
+          "default": false
+        }
+      ],
+      "defaults": {
+        "steps": 50,
+        "cfg": 4.0,
+        "sampler": "euler",
+        "scheduler": "simple",
+        "width": 1080,
+        "height": 1920
+      }
+    },
+    {
+      "id": "qwen-image-2512-turbo",
+      "target": "both",
+      "name": "Qwen-Image 2512 Turbo",
+      "type": "text2img",
+      "template": "server/workflows-runpod/qwen-image-2512-turbo.json",
+      "promptMode": "single",
+      "fields": {
+        "prompt": {
+          "node": "108",
+          "field": "text"
+        },
+        "seed": {
+          "node": "106",
+          "field": "seed"
+        },
+        "steps": {
+          "node": "106",
+          "field": "steps"
+        },
+        "cfg": {
+          "node": "106",
+          "field": "cfg"
+        },
+        "sampler": {
+          "node": "106",
+          "field": "sampler_name"
+        },
+        "scheduler": {
+          "node": "106",
+          "field": "scheduler"
+        },
+        "denoise": {
+          "node": "106",
+          "field": "denoise"
+        },
+        "width": {
+          "node": "107",
+          "field": "width"
+        },
+        "height": {
+          "node": "107",
+          "field": "height"
+        },
+        "prefix": {
+          "node": "123",
+          "field": "filename_prefix"
+        }
+      },
+      "defaults": {
+        "steps": 2,
+        "cfg": 1.0,
+        "sampler": "euler",
+        "scheduler": "simple",
+        "denoise": 1.0,
+        "width": 1080,
+        "height": 1920
+      }
+    },
+    {
+      "id": "qwen-image-edit-2511",
+      "name": "Qwen Image Edit 2511",
+      "target": "runpod",
+      "type": "text2img-img",
+      "template": "server/workflows-runpod/qwen-image-edit-2511.json",
+      "promptMode": "positive-negative",
+      "fields": {
+        "image": {
+          "node": "41",
+          "field": "image"
+        },
+        "image2": {
+          "node": "83",
+          "field": "image"
+        },
+        "positive": {
+          "node": "170:151",
+          "field": "prompt"
+        },
+        "negative": {
+          "node": "170:149",
+          "field": "prompt"
+        },
+        "seed": {
+          "node": "170:169",
+          "field": "seed"
+        },
+        "steps": {
+          "node": "170:166",
+          "field": "value"
+        },
+        "cfg": {
+          "node": "170:154",
+          "field": "value"
+        },
+        "sampler": {
+          "node": "170:169",
+          "field": "sampler_name"
+        },
+        "scheduler": {
+          "node": "170:169",
+          "field": "scheduler"
+        },
+        "denoise": {
+          "node": "170:169",
+          "field": "denoise"
+        },
+        "prefix": {
+          "node": "9",
+          "field": "filename_prefix"
+        }
+      },
+      "toggles": [
+        {
+          "key": "fast",
+          "label": "4-step fast mode (Lightning LoRA)",
+          "node": "170:168",
+          "field": "value",
+          "default": false
+        }
+      ],
+      "defaults": {
+        "steps": 40,
+        "cfg": 4.0,
+        "sampler": "euler",
+        "scheduler": "simple",
+        "denoise": 1.0
+      }
+    },
+    {
+      "id": "z-image-img2img",
+      "target": "both",
+      "name": "Z-Image (img2img)",
+      "type": "img2img",
+      "template": "server/workflows-runpod/z-image-img2img.json",
+      "promptMode": "positive-negative",
+      "fields": {
+        "image": {
+          "node": "70",
+          "field": "image"
+        },
+        "positive": {
+          "node": "68",
+          "field": "text"
+        },
+        "negative": {
+          "node": "69",
+          "field": "text"
+        },
+        "seed": {
+          "node": "72",
+          "field": "seed"
+        },
+        "steps": {
+          "node": "72",
+          "field": "steps"
+        },
+        "cfg": {
+          "node": "72",
+          "field": "cfg"
+        },
+        "sampler": {
+          "node": "72",
+          "field": "sampler_name"
+        },
+        "scheduler": {
+          "node": "72",
+          "field": "scheduler"
+        },
+        "denoise": {
+          "node": "72",
+          "field": "denoise"
+        },
+        "prefix": {
+          "node": "74",
+          "field": "filename_prefix"
+        }
+      },
+      "defaults": {
+        "steps": 20,
+        "cfg": 8.0,
+        "sampler": "euler",
+        "scheduler": "normal",
+        "denoise": 0.5
+      }
+    },
+    {
+      "id": "wan2.2-i2v-local",
+      "name": "WAN 2.2 i2v nativo · 4-step (LAN)",
+      "type": "img2vid",
+      "template": "server/workflows-runpod/wan2.2-i2v.json",
+      "promptMode": "positive-negative",
+      "fields": {
+        "image": {
+          "node": "97",
+          "field": "image"
+        },
+        "positive": {
+          "node": "129:93",
+          "field": "text"
+        },
+        "negative": {
+          "node": "129:89",
+          "field": "text"
+        },
+        "seed": {
+          "node": "129:86",
+          "field": "noise_seed"
+        },
+        "width": {
+          "node": "129:98",
+          "field": "width"
+        },
+        "height": {
+          "node": "129:98",
+          "field": "height"
+        },
+        "frames": {
+          "node": "129:98",
+          "field": "length"
+        },
+        "fps": {
+          "node": "129:94",
+          "field": "fps"
+        },
+        "cfg": {
+          "node": "129:86",
+          "field": "cfg"
+        },
+        "steps": [
+          {
+            "node": "129:118",
+            "field": "value"
+          },
+          {
+            "node": "129:128",
+            "field": "value"
+          }
+        ],
+        "stepsBoundary": [
+          {
+            "node": "129:124",
+            "field": "value"
+          },
+          {
+            "node": "129:127",
+            "field": "value"
+          }
+        ],
+        "shift": [
+          {
+            "node": "129:103",
+            "field": "shift"
+          },
+          {
+            "node": "129:104",
+            "field": "shift"
+          }
+        ],
+        "loraHigh": {
+          "node": "129:101",
+          "field": "strength_model"
+        },
+        "loraLow": {
+          "node": "129:102",
+          "field": "strength_model"
+        },
+        "prefix": {
+          "node": "108",
+          "field": "filename_prefix"
+        }
+      },
+      "toggles": [
+        {
+          "key": "fast",
+          "label": "Lightning LoRA 4-step (veloce)",
+          "node": "129:131",
+          "field": "value",
+          "default": true
+        }
+      ],
+      "defaults": {
+        "width": 432,
+        "height": 768,
+        "frames": 81,
+        "fps": 32,
+        "cfg": 1.0,
+        "shift": 4,
+        "loraHigh": 1.0,
+        "loraLow": 1.0,
+        "steps": 4,
+        "stepsBoundaryRatio": 0.5
+      }
+    },
+    {
+      "id": "wan2.2-i2v",
+      "name": "WAN 2.2 Image→Video",
+      "type": "img2vid",
+      "target": "runpod",
+      "template": "server/workflows-runpod/wan2.2-i2v.json",
+      "promptMode": "positive-negative",
+      "fields": {
+        "image": {
+          "node": "97",
+          "field": "image"
+        },
+        "positive": {
+          "node": "129:93",
+          "field": "text"
+        },
+        "negative": {
+          "node": "129:89",
+          "field": "text"
+        },
+        "seed": {
+          "node": "129:86",
+          "field": "noise_seed"
+        },
+        "width": {
+          "node": "129:98",
+          "field": "width"
+        },
+        "height": {
+          "node": "129:98",
+          "field": "height"
+        },
+        "frames": {
+          "node": "129:98",
+          "field": "length"
+        },
+        "fps": {
+          "node": "129:94",
+          "field": "fps"
+        },
+        "cfg": {
+          "node": "129:86",
+          "field": "cfg"
+        },
+        "steps": [
+          {
+            "node": "129:118",
+            "field": "value"
+          },
+          {
+            "node": "129:128",
+            "field": "value"
+          }
+        ],
+        "stepsBoundary": [
+          {
+            "node": "129:124",
+            "field": "value"
+          },
+          {
+            "node": "129:127",
+            "field": "value"
+          }
+        ],
+        "shift": [
+          {
+            "node": "129:103",
+            "field": "shift"
+          },
+          {
+            "node": "129:104",
+            "field": "shift"
+          }
+        ],
+        "loraHigh": {
+          "node": "129:101",
+          "field": "strength_model"
+        },
+        "loraLow": {
+          "node": "129:102",
+          "field": "strength_model"
+        },
+        "prefix": {
+          "node": "108",
+          "field": "filename_prefix"
+        }
+      },
+      "toggles": [
+        {
+          "key": "fast",
+          "label": "Lightning LoRA 4-step (veloce)",
+          "node": "129:131",
+          "field": "value",
+          "default": true
+        }
+      ],
+      "defaults": {
+        "width": 480,
+        "height": 848,
+        "frames": 81,
+        "fps": 64,
+        "cfg": 1.0,
+        "shift": 4,
+        "loraHigh": 1.0,
+        "loraLow": 1.0,
+        "steps": 4,
+        "stepsBoundaryRatio": 0.5
+      }
+    },
+    {
+      "id": "wan2.2-i2v-hq",
+      "name": "WAN 2.2 Image→Video · HQ (no-lora, 5s moto vero)",
+      "type": "img2vid",
+      "target": "runpod",
+      "template": "server/workflows-runpod/wan2.2-i2v-hq.json",
+      "promptMode": "positive-negative",
+      "fields": {
+        "image": {
+          "node": "97",
+          "field": "image"
+        },
+        "positive": {
+          "node": "129:93",
+          "field": "text"
+        },
+        "negative": {
+          "node": "129:89",
+          "field": "text"
+        },
+        "seed": {
+          "node": "129:86",
+          "field": "noise_seed"
+        },
+        "width": {
+          "node": "129:98",
+          "field": "width"
+        },
+        "height": {
+          "node": "129:98",
+          "field": "height"
+        },
+        "frames": {
+          "node": "129:98",
+          "field": "length"
+        },
+        "fps": {
+          "node": "129:94",
+          "field": "fps"
+        },
+        "cfg": [
+          {
+            "node": "129:86",
+            "field": "cfg"
+          },
+          {
+            "node": "129:85",
+            "field": "cfg"
+          }
+        ],
+        "shift": [
+          {
+            "node": "129:103",
+            "field": "shift"
+          },
+          {
+            "node": "129:104",
+            "field": "shift"
+          }
+        ],
+        "steps": {
+          "node": "129:128",
+          "field": "value"
+        },
+        "stepsBoundary": {
+          "node": "129:127",
+          "field": "value"
+        },
+        "prefix": {
+          "node": "108",
+          "field": "filename_prefix"
+        }
+      },
+      "defaultNegative": "deformed, mutated hands, extra fingers, extra arms, extra limbs, distorted face, bad anatomy, blurry, low quality, jpeg artifacts, watermark, text, multiple people, second person, duplicate body, melting clothes, floating limbs, static, still, motionless, frozen, slow motion, time-lapse, stutter",
+      "defaults": {
+        "width": 480,
+        "height": 848,
+        "frames": 81,
+        "fps": 32,
+        "cfg": 3.5,
+        "shift": 5,
+        "steps": 20,
+        "stepsBoundaryRatio": 0.5
+      }
+    },
+    {
+      "id": "wan2.2-t2v",
+      "name": "WAN 2.2 Text→Video",
+      "type": "text2vid",
+      "target": "runpod",
+      "template": "server/workflows-runpod/wan2.2-t2v.json",
+      "promptMode": "single",
+      "fields": {
+        "prompt": {
+          "node": "128:89",
+          "field": "text"
+        },
+        "seed": {
+          "node": "128:81",
+          "field": "noise_seed"
+        },
+        "width": {
+          "node": "128:74",
+          "field": "width"
+        },
+        "height": {
+          "node": "128:74",
+          "field": "height"
+        },
+        "frames": {
+          "node": "128:74",
+          "field": "length"
+        },
+        "fps": {
+          "node": "128:88",
+          "field": "fps"
+        },
+        "steps": {
+          "node": "128:117",
+          "field": "value"
+        },
+        "stepsBoundary": {
+          "node": "128:118",
+          "field": "value"
+        },
+        "shift": [
+          {
+            "node": "128:82",
+            "field": "shift"
+          },
+          {
+            "node": "128:86",
+            "field": "shift"
+          }
+        ],
+        "loraHigh": {
+          "node": "128:83",
+          "field": "strength_model"
+        },
+        "prefix": {
+          "node": "80",
+          "field": "filename_prefix"
+        }
+      },
+      "toggles": [
+        {
+          "key": "fast",
+          "label": "Lightning LoRA 4-step (veloce)",
+          "node": "128:129",
+          "field": "value",
+          "default": true
+        }
+      ],
+      "defaults": {
+        "width": 480,
+        "height": 848,
+        "frames": 81,
+        "fps": 32,
+        "shift": 4,
+        "loraHigh": 1.0,
+        "steps": 8,
+        "stepsBoundaryRatio": 0.5
+      }
+    },
+    {
+      "id": "wan2.2-t2v-hq",
+      "name": "WAN 2.2 Text→Video (full quality, no lightning)",
+      "type": "text2vid",
+      "target": "runpod",
+      "template": "server/workflows-runpod/wan2.2-t2v-hq.json",
+      "promptMode": "single",
+      "fields": {
+        "prompt": {
+          "node": "128:89",
+          "field": "text"
+        },
+        "seed": {
+          "node": "128:81",
+          "field": "noise_seed"
+        },
+        "width": {
+          "node": "128:74",
+          "field": "width"
+        },
+        "height": {
+          "node": "128:74",
+          "field": "height"
+        },
+        "duration": {
+          "node": "128:126",
+          "field": "value"
+        },
+        "fps": {
+          "node": "128:88",
+          "field": "fps"
+        },
+        "cfg": {
+          "node": "128:81",
+          "field": "cfg"
+        },
+        "steps": [
+          {
+            "node": "128:81",
+            "field": "steps"
+          },
+          {
+            "node": "128:78",
+            "field": "steps"
+          },
+          {
+            "node": "128:78",
+            "field": "end_at_step"
+          }
+        ],
+        "stepsBoundary": [
+          {
+            "node": "128:81",
+            "field": "end_at_step"
+          },
+          {
+            "node": "128:78",
+            "field": "start_at_step"
+          }
+        ],
+        "shift": [
+          {
+            "node": "128:82",
+            "field": "shift"
+          },
+          {
+            "node": "128:86",
+            "field": "shift"
+          }
+        ],
+        "prefix": {
+          "node": "80",
+          "field": "filename_prefix"
+        }
+      },
+      "defaults": {
+        "width": 480,
+        "height": 848,
+        "duration": 5,
+        "fps": 24,
+        "cfg": 3.5,
+        "shift": 5,
+        "steps": 20,
+        "stepsBoundaryRatio": 0.5
+      }
+    },
+    {
+      "id": "ltx-2.3-t2v",
+      "name": "LTX-2.3 Text→Video",
+      "type": "text2vid",
+      "target": "runpod",
+      "template": "server/workflows-runpod/ltx-2.3-t2v.json",
+      "promptMode": "single",
+      "fields": {
+        "prompt": {
+          "node": "267:266",
+          "field": "value"
+        },
+        "seed": {
+          "node": "267:237",
+          "field": "noise_seed"
+        },
+        "width": {
+          "node": "267:257",
+          "field": "value"
+        },
+        "height": {
+          "node": "267:258",
+          "field": "value"
+        },
+        "duration": {
+          "node": "267:225",
+          "field": "value"
+        },
+        "gemmaTemp": {
+          "node": "267:327",
+          "field": "sampling_mode.temperature"
+        },
+        "gemmaTopK": {
+          "node": "267:327",
+          "field": "sampling_mode.top_k"
+        },
+        "gemmaTopP": {
+          "node": "267:327",
+          "field": "sampling_mode.top_p"
+        },
+        "gemmaMinP": {
+          "node": "267:327",
+          "field": "sampling_mode.min_p"
+        },
+        "gemmaRepPen": {
+          "node": "267:327",
+          "field": "sampling_mode.repetition_penalty"
+        },
+        "prefix": {
+          "node": "75",
+          "field": "filename_prefix"
+        },
+        "fps": {
+          "node": "267:260",
+          "field": "value"
+        }
+      },
+      "toggles": [
+        {
+          "key": "enhance",
+          "label": "Prompt Enhance (Gemma)",
+          "node": "267:330",
+          "field": "value",
+          "default": true
+        }
+      ],
+      "defaults": {
+        "width": 1280,
+        "height": 720,
+        "duration": 5,
+        "gemmaTemp": 0.3,
+        "gemmaTopK": 64,
+        "gemmaTopP": 0.95,
+        "gemmaMinP": 0.05,
+        "gemmaRepPen": 1.05,
+        "fps": 24
+      }
+    },
+    {
+      "id": "ltx-2.3-i2v",
+      "name": "LTX-2.3 Image→Video",
+      "type": "img2vid",
+      "target": "runpod",
+      "template": "server/workflows-runpod/ltx-2.3-i2v.json",
+      "promptMode": "single",
+      "fields": {
+        "image": {
+          "node": "269",
+          "field": "image"
+        },
+        "prompt": {
+          "node": "320:319",
+          "field": "value"
+        },
+        "seed": [
+          {
+            "node": "320:276",
+            "field": "noise_seed"
+          },
+          {
+            "node": "320:277",
+            "field": "noise_seed"
+          }
+        ],
+        "width": {
+          "node": "320:312",
+          "field": "value"
+        },
+        "height": {
+          "node": "320:299",
+          "field": "value"
+        },
+        "duration": {
+          "node": "320:301",
+          "field": "value"
+        },
+        "condStrength": {
+          "node": "320:296",
+          "field": "strength"
+        },
+        "condStrengthRefine": {
+          "node": "320:288",
+          "field": "strength"
+        },
+        "gemmaTemp": {
+          "node": "320:325",
+          "field": "sampling_mode.temperature"
+        },
+        "gemmaTopK": {
+          "node": "320:325",
+          "field": "sampling_mode.top_k"
+        },
+        "gemmaTopP": {
+          "node": "320:325",
+          "field": "sampling_mode.top_p"
+        },
+        "gemmaMinP": {
+          "node": "320:325",
+          "field": "sampling_mode.min_p"
+        },
+        "gemmaRepPen": {
+          "node": "320:325",
+          "field": "sampling_mode.repetition_penalty"
+        },
+        "imgCompression": {
+          "node": "320:289",
+          "field": "img_compression"
+        },
+        "prefix": {
+          "node": "75",
+          "field": "filename_prefix"
+        },
+        "fps": {
+          "node": "320:300",
+          "field": "value"
+        }
+      },
+      "toggles": [
+        {
+          "key": "enhance",
+          "label": "Prompt Enhance (Gemma)",
+          "node": "320:328",
+          "field": "value",
+          "default": true
+        }
+      ],
+      "defaults": {
+        "width": 1280,
+        "height": 720,
+        "duration": 5,
+        "condStrength": 0.7,
+        "condStrengthRefine": 1.0,
+        "gemmaTemp": 0.3,
+        "gemmaTopK": 64,
+        "gemmaTopP": 0.95,
+        "gemmaMinP": 0.05,
+        "gemmaRepPen": 1.05,
+        "imgCompression": 8,
+        "fps": 24
+      }
+    },
+    {
+      "id": "wan-upscale",
+      "target": "both",
+      "name": "Fast GAN Video Upscale (4×)",
+      "type": "video-upscale",
+      "template": "server/workflows-runpod/wan-upscale.json",
+      "promptMode": "none",
+      "fields": {
+        "image": {
+          "node": "9",
+          "field": "file"
+        },
+        "prefix": {
+          "node": "12",
+          "field": "filename_prefix"
+        }
+      },
+      "defaults": {}
+    },
+    {
+      "id": "video-upscale",
+      "target": "both",
+      "name": "Video Upscale flex (modello + resize finale)",
+      "type": "video-upscale",
+      "template": "server/workflows-runpod/video-upscale.json",
+      "promptMode": "none",
+      "fields": {
+        "image": {
+          "node": "9",
+          "field": "file"
+        },
+        "upscaleModel": {
+          "node": "1",
+          "field": "model_name"
+        },
+        "width": {
+          "node": "3",
+          "field": "width"
+        },
+        "height": {
+          "node": "3",
+          "field": "height"
+        },
+        "prefix": {
+          "node": "12",
+          "field": "filename_prefix"
+        }
+      },
+      "defaults": {
+        "upscaleModel": "RealESRGAN_x4plus.pth",
+        "width": 1080,
+        "height": 1920
+      },
+      "upscaleModels": [
+        "RealESRGAN_x4plus.pth",
+        "RealESRGAN_x2plus.pth"
+      ]
+    },
+    {
+      "id": "wan2.2-fun-camera",
+      "target": "both",
+      "name": "WAN 2.2 Fun Camera (controllo camera)",
+      "type": "img2vid",
+      "template": "server/workflows-runpod/wan2.2-fun-camera.json",
+      "promptMode": "positive-negative",
+      "fields": {
+        "image": {
+          "node": "97",
+          "field": "image"
+        },
+        "positive": {
+          "node": "107",
+          "field": "text"
+        },
+        "negative": {
+          "node": "99",
+          "field": "text"
+        },
+        "cameraPose": {
+          "node": "108",
+          "field": "camera_pose"
+        },
+        "speed": {
+          "node": "108",
+          "field": "speed"
+        },
+        "width": {
+          "node": "108",
+          "field": "width"
+        },
+        "height": {
+          "node": "108",
+          "field": "height"
+        },
+        "frames": {
+          "node": "108",
+          "field": "length"
+        },
+        "seed": {
+          "node": "102",
+          "field": "noise_seed"
+        },
+        "cfg": [
+          {
+            "node": "102",
+            "field": "cfg"
+          },
+          {
+            "node": "103",
+            "field": "cfg"
+          }
+        ],
+        "steps": [
+          {
+            "node": "102",
+            "field": "steps"
+          },
+          {
+            "node": "103",
+            "field": "steps"
+          }
+        ],
+        "stepsBoundary": [
+          {
+            "node": "102",
+            "field": "end_at_step"
+          },
+          {
+            "node": "103",
+            "field": "start_at_step"
+          }
+        ],
+        "shift": [
+          {
+            "node": "100",
+            "field": "shift"
+          },
+          {
+            "node": "101",
+            "field": "shift"
+          }
+        ],
+        "loraHigh": {
+          "node": "200",
+          "field": "strength_model"
+        },
+        "loraLow": {
+          "node": "201",
+          "field": "strength_model"
+        },
+        "fps": {
+          "node": "105",
+          "field": "fps"
+        },
+        "prefix": {
+          "node": "106",
+          "field": "filename_prefix"
+        }
+      },
+      "toggles": [
+        {
+          "key": "fast",
+          "label": "Lightning LoRA 4-step (veloce)",
+          "node": [
+            "200",
+            "201"
+          ],
+          "field": "strength_model",
+          "offValue": 0,
+          "default": true
+        }
+      ],
+      "exportFramesNode": "104",
+      "videoSaveNode": "106",
+      "defaultNegative": "static, blurry, low quality, jpeg artifacts, deformed, bad anatomy, extra limbs, extra fingers, distorted face, watermark, text, cluttered background",
+      "defaults": {
+        "cameraPose": "Zoom In",
+        "speed": 1.0,
+        "width": 432,
+        "height": 768,
+        "frames": 81,
+        "fps": 16,
+        "cfg": 1.0,
+        "shift": 4,
+        "loraHigh": 1.0,
+        "loraLow": 1.0,
+        "steps": 4,
+        "stepsBoundaryRatio": 0.5
+      }
+    }
+  ]
+}

@@ -151,7 +151,7 @@
   },
   "129:84": {
     "inputs": {
-      "clip_name": "umt5_xxl_fp8_e4m3fn_scaled.safetensors",
+      "clip_name": "nsfw_wan_umt5-xxl_fp8_scaled.safetensors",
       "type": "wan",
       "device": "default"
     },
@@ -200,7 +200,7 @@
   },
   "129:102": {
     "inputs": {
-      "lora_name": "wan2.2_i2v_lightx2v_4steps_lora_v1_low_noise.safetensors",
+      "lora_name": "Wan2.2-Lightning_I2V-A14B-4steps-lora_LOW_fp16.safetensors",
       "strength_model": 1.0,
       "model": [
         "129:96",
@@ -214,7 +214,7 @@
   },
   "129:101": {
     "inputs": {
-      "lora_name": "wan2.2_i2v_lightx2v_4steps_lora_v1_high_noise.safetensors",
+      "lora_name": "Wan2.2-Lightning_I2V-A14B-4steps-lora_HIGH_fp16.safetensors",
       "strength_model": 1.0,
       "model": [
         "129:95",

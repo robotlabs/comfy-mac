@@ -1,11 +1,12 @@
 {
   "75": {
     "inputs": {
-      "filename_prefix": "video/LTX_2.3_t2v",
+      "filename_prefix": "video/LTX_2.3_i2v",
       "format": "auto",
       "codec": "auto",
+      "video-preview": "",
       "video": [
-        "267:242",
+        "320:310",
         0
       ]
     },
@@ -14,7 +15,16 @@
       "title": "Save Video"
     }
   },
-  "267:216": {
+  "269": {
+    "inputs": {
+      "image": "run-test-2_00016_.png"
+    },
+    "class_type": "LoadImage",
+    "_meta": {
+      "title": "Load Image"
+    }
+  },
+  "320:276": {
     "inputs": {
       "noise_seed": 42
     },
@@ -23,23 +33,23 @@
       "title": "RandomNoise"
     }
   },
-  "267:237": {
+  "320:277": {
     "inputs": {
-      "noise_seed": 810138461690240
+      "noise_seed": 376861620096887
     },
     "class_type": "RandomNoise",
     "_meta": {
       "title": "RandomNoise"
     }
   },
-  "267:229": {
+  "320:278": {
     "inputs": {
       "video_latent": [
-        "267:230",
+        "320:288",
         0
       ],
       "audio_latent": [
-        "267:217",
+        "320:307",
         1
       ]
     },
@@ -48,7 +58,7 @@
       "title": "LTXVConcatAVLatent"
     }
   },
-  "267:221": {
+  "320:279": {
     "inputs": {
       "ckpt_name": "ltx-2.3-22b-dev-fp8.safetensors"
     },
@@ -57,7 +67,7 @@
       "title": "LTXV Audio VAE Loader"
     }
   },
-  "267:246": {
+  "320:280": {
     "inputs": {
       "sampler_name": "euler"
     },
@@ -66,7 +76,7 @@
       "title": "KSamplerSelect"
     }
   },
-  "267:211": {
+  "320:281": {
     "inputs": {
       "sigmas": "0.85, 0.7250, 0.4219, 0.0"
     },
@@ -75,19 +85,19 @@
       "title": "ManualSigmas"
     }
   },
-  "267:213": {
+  "320:282": {
     "inputs": {
-      "cfg": 1.0,
+      "cfg": 1,
       "model": [
-        "267:232",
+        "320:285",
         0
       ],
       "positive": [
-        "267:212",
+        "320:284",
         0
       ],
       "negative": [
-        "267:212",
+        "320:284",
         1
       ]
     },
@@ -96,26 +106,26 @@
       "title": "CFGGuider"
     }
   },
-  "267:215": {
+  "320:283": {
     "inputs": {
       "noise": [
-        "267:237",
+        "320:277",
         0
       ],
       "guider": [
-        "267:231",
+        "320:314",
         0
       ],
       "sampler": [
-        "267:209",
+        "320:291",
         0
       ],
       "sigmas": [
-        "267:252",
+        "320:306",
         0
       ],
       "latent_image": [
-        "267:222",
+        "320:318",
         0
       ]
     },
@@ -124,18 +134,18 @@
       "title": "SamplerCustomAdvanced"
     }
   },
-  "267:212": {
+  "320:284": {
     "inputs": {
       "positive": [
-        "267:239",
+        "320:304",
         0
       ],
       "negative": [
-        "267:239",
+        "320:304",
         1
       ],
       "latent": [
-        "267:217",
+        "320:307",
         0
       ]
     },
@@ -144,12 +154,12 @@
       "title": "LTXVCropGuides"
     }
   },
-  "267:232": {
+  "320:285": {
     "inputs": {
       "lora_name": "ltx_2.3_22b_distilled_1.1_lora_dynamic_fro09_avg_rank_111_bf16.safetensors",
       "strength_model": 0.5,
       "model": [
-        "267:236",
+        "320:316",
         0
       ]
     },
@@ -158,11 +168,14 @@
       "title": "Load LoRA"
     }
   },
-  "267:235": {
+  "320:286": {
     "inputs": {
-      "longer_edge": 1536,
+      "longer_edge": [
+        "320:299",
+        0
+      ],
       "images": [
-        "267:238",
+        "320:290",
         0
       ]
     },
@@ -171,18 +184,18 @@
       "title": "Resize Images by Longer Edge"
     }
   },
-  "267:253": {
+  "320:287": {
     "inputs": {
       "samples": [
-        "267:217",
+        "320:307",
         0
       ],
       "upscale_model": [
-        "267:233",
+        "320:311",
         0
       ],
       "vae": [
-        "267:236",
+        "320:316",
         2
       ]
     },
@@ -191,23 +204,23 @@
       "title": "LTXVLatentUpsampler"
     }
   },
-  "267:230": {
+  "320:288": {
     "inputs": {
-      "strength": 1.0,
+      "strength": 1,
       "bypass": [
-        "267:201",
+        "320:302",
         0
       ],
       "vae": [
-        "267:236",
+        "320:316",
         2
       ],
       "image": [
-        "267:248",
+        "320:289",
         0
       ],
       "latent": [
-        "267:253",
+        "320:287",
         0
       ]
     },
@@ -216,11 +229,11 @@
       "title": "LTXVImgToVideoInplace"
     }
   },
-  "267:248": {
+  "320:289": {
     "inputs": {
       "img_compression": 18,
       "image": [
-        "267:235",
+        "320:286",
         0
       ]
     },
@@ -229,21 +242,21 @@
       "title": "LTXVPreprocess"
     }
   },
-  "267:238": {
+  "320:290": {
     "inputs": {
       "resize_type": "scale dimensions",
       "resize_type.width": [
-        "267:257",
+        "320:312",
         0
       ],
       "resize_type.height": [
-        "267:258",
+        "320:299",
         0
       ],
       "resize_type.crop": "center",
       "scale_method": "lanczos",
       "input": [
-        "267:325",
+        "269",
         0
       ]
     },
@@ -252,7 +265,7 @@
       "title": "Resize Image/Mask"
     }
   },
-  "267:209": {
+  "320:291": {
     "inputs": {
       "sampler_name": "euler"
     },
@@ -261,11 +274,11 @@
       "title": "KSamplerSelect"
     }
   },
-  "267:256": {
+  "320:292": {
     "inputs": {
       "expression": "a/2",
       "values.a": [
-        "267:257",
+        "320:312",
         0
       ]
     },
@@ -274,11 +287,11 @@
       "title": "Math Expression"
     }
   },
-  "267:259": {
+  "320:294": {
     "inputs": {
       "expression": "a/2",
       "values.a": [
-        "267:258",
+        "320:299",
         0
       ]
     },
@@ -287,18 +300,18 @@
       "title": "Math Expression"
     }
   },
-  "267:228": {
+  "320:295": {
     "inputs": {
       "width": [
-        "267:256",
+        "320:292",
         1
       ],
       "height": [
-        "267:259",
+        "320:294",
         1
       ],
       "length": [
-        "267:277",
+        "320:323",
         1
       ],
       "batch_size": 1
@@ -308,23 +321,23 @@
       "title": "EmptyLTXVLatentVideo"
     }
   },
-  "267:249": {
+  "320:296": {
     "inputs": {
       "strength": 0.7,
       "bypass": [
-        "267:201",
+        "320:302",
         0
       ],
       "vae": [
-        "267:236",
+        "320:316",
         2
       ],
       "image": [
-        "267:248",
+        "320:289",
         0
       ],
       "latent": [
-        "267:228",
+        "320:295",
         0
       ]
     },
@@ -333,14 +346,14 @@
       "title": "LTXVImgToVideoInplace"
     }
   },
-  "267:220": {
+  "320:297": {
     "inputs": {
       "samples": [
-        "267:218",
+        "320:309",
         1
       ],
       "audio_vae": [
-        "267:221",
+        "320:279",
         0
       ]
     },
@@ -349,20 +362,20 @@
       "title": "LTXV Audio VAE Decode"
     }
   },
-  "267:261": {
+  "320:298": {
     "inputs": {
       "expression": "a",
       "values.a": [
-        "267:260",
+        "320:300",
         0
       ]
     },
     "class_type": "ComfyMathExpression",
     "_meta": {
-      "title": "Math Expression (fps)"
+      "title": "Math Expression"
     }
   },
-  "267:258": {
+  "320:299": {
     "inputs": {
       "value": 720
     },
@@ -371,7 +384,7 @@
       "title": "Height"
     }
   },
-  "267:260": {
+  "320:300": {
     "inputs": {
       "value": 25
     },
@@ -380,7 +393,7 @@
       "title": "Frame Rate"
     }
   },
-  "267:225": {
+  "320:301": {
     "inputs": {
       "value": 5
     },
@@ -389,23 +402,23 @@
       "title": "Duration"
     }
   },
-  "267:201": {
+  "320:302": {
     "inputs": {
-      "value": true
+      "value": false
     },
     "class_type": "PrimitiveBoolean",
     "_meta": {
       "title": "Switch to Text to Video?"
     }
   },
-  "267:240": {
+  "320:303": {
     "inputs": {
       "text": [
-        "267:329",
+        "320:327",
         0
       ],
       "clip": [
-        "267:243",
+        "320:317",
         0
       ]
     },
@@ -414,18 +427,18 @@
       "title": "CLIP Text Encode (Prompt)"
     }
   },
-  "267:239": {
+  "320:304": {
     "inputs": {
       "frame_rate": [
-        "267:261",
+        "320:298",
         0
       ],
       "positive": [
-        "267:240",
+        "320:303",
         0
       ],
       "negative": [
-        "267:247",
+        "320:313",
         0
       ]
     },
@@ -434,19 +447,19 @@
       "title": "LTXVConditioning"
     }
   },
-  "267:214": {
+  "320:305": {
     "inputs": {
       "frames_number": [
-        "267:277",
+        "320:323",
         1
       ],
       "frame_rate": [
-        "267:261",
+        "320:298",
         1
       ],
       "batch_size": 1,
       "audio_vae": [
-        "267:221",
+        "320:279",
         0
       ]
     },
@@ -455,7 +468,7 @@
       "title": "LTXV Empty Latent Audio"
     }
   },
-  "267:252": {
+  "320:306": {
     "inputs": {
       "sigmas": "1.0, 0.99375, 0.9875, 0.98125, 0.975, 0.909375, 0.725, 0.421875, 0.0"
     },
@@ -464,10 +477,10 @@
       "title": "ManualSigmas"
     }
   },
-  "267:217": {
+  "320:307": {
     "inputs": {
       "av_latent": [
-        "267:215",
+        "320:283",
         0
       ]
     },
@@ -476,26 +489,26 @@
       "title": "LTXVSeparateAVLatent"
     }
   },
-  "267:219": {
+  "320:308": {
     "inputs": {
       "noise": [
-        "267:216",
+        "320:276",
         0
       ],
       "guider": [
-        "267:213",
+        "320:282",
         0
       ],
       "sampler": [
-        "267:246",
+        "320:280",
         0
       ],
       "sigmas": [
-        "267:211",
+        "320:281",
         0
       ],
       "latent_image": [
-        "267:229",
+        "320:278",
         0
       ]
     },
@@ -504,10 +517,10 @@
       "title": "SamplerCustomAdvanced"
     }
   },
-  "267:218": {
+  "320:309": {
     "inputs": {
       "av_latent": [
-        "267:219",
+        "320:308",
         0
       ]
     },
@@ -516,18 +529,18 @@
       "title": "LTXVSeparateAVLatent"
     }
   },
-  "267:242": {
+  "320:310": {
     "inputs": {
       "fps": [
-        "267:261",
+        "320:298",
         0
       ],
       "images": [
-        "267:251",
+        "320:315",
         0
       ],
       "audio": [
-        "267:220",
+        "320:297",
         0
       ]
     },
@@ -536,7 +549,7 @@
       "title": "Create Video"
     }
   },
-  "267:233": {
+  "320:311": {
     "inputs": {
       "model_name": "ltx-2.3-spatial-upscaler-x2-1.1.safetensors"
     },
@@ -545,7 +558,7 @@
       "title": "Load Latent Upscale Model"
     }
   },
-  "267:257": {
+  "320:312": {
     "inputs": {
       "value": 1280
     },
@@ -554,11 +567,11 @@
       "title": "Width"
     }
   },
-  "267:247": {
+  "320:313": {
     "inputs": {
       "text": "pc game, console game, video game, cartoon, childish, ugly",
       "clip": [
-        "267:243",
+        "320:317",
         0
       ]
     },
@@ -567,19 +580,19 @@
       "title": "CLIP Text Encode (Prompt)"
     }
   },
-  "267:231": {
+  "320:314": {
     "inputs": {
-      "cfg": 1.0,
+      "cfg": 1,
       "model": [
-        "267:232",
+        "320:285",
         0
       ],
       "positive": [
-        "267:239",
+        "320:304",
         0
       ],
       "negative": [
-        "267:239",
+        "320:304",
         1
       ]
     },
@@ -588,18 +601,18 @@
       "title": "CFGGuider"
     }
   },
-  "267:251": {
+  "320:315": {
     "inputs": {
       "tile_size": 768,
       "overlap": 64,
       "temporal_size": 4096,
       "temporal_overlap": 4,
       "samples": [
-        "267:218",
+        "320:309",
         0
       ],
       "vae": [
-        "267:236",
+        "320:316",
         2
       ]
     },
@@ -608,7 +621,7 @@
       "title": "VAE Decode (Tiled)"
     }
   },
-  "267:236": {
+  "320:316": {
     "inputs": {
       "ckpt_name": "ltx-2.3-22b-dev-fp8.safetensors"
     },
@@ -617,7 +630,7 @@
       "title": "Load Checkpoint"
     }
   },
-  "267:243": {
+  "320:317": {
     "inputs": {
       "text_encoder": "gemma_3_12B_it_fp4_mixed.safetensors",
       "ckpt_name": "ltx-2.3-22b-dev-fp8.safetensors",
@@ -628,23 +641,14 @@
       "title": "LTXV Audio Text Encoder Loader"
     }
   },
-  "267:266": {
-    "inputs": {
-      "value": "Dynamic cinematic close-up of high-tech modular machinery self-assembling in midair, precision robotic parts, magnetic connectors, and glowing circuits clicking together, subtle smoke and light flares, extremely detailed titanium textures. The final product displays a clean, clear surface with large glowing engraved text \u201cLTX-2.3\u201d centered and unobstructed, dramatic lighting, photorealism, 8K, sharp focus.\n"
-    },
-    "class_type": "PrimitiveStringMultiline",
-    "_meta": {
-      "title": "Prompt"
-    }
-  },
-  "267:222": {
+  "320:318": {
     "inputs": {
       "video_latent": [
-        "267:249",
+        "320:296",
         0
       ],
       "audio_latent": [
-        "267:214",
+        "320:305",
         0
       ]
     },
@@ -653,15 +657,24 @@
       "title": "LTXVConcatAVLatent"
     }
   },
-  "267:277": {
+  "320:319": {
+    "inputs": {
+      "value": "Egyptian royal in blue-and-gold headdress and high collar, white dress with golden embroidery and armbands, desert, robot soldiers in formation left and right. She walks steadily forward, head held level and gaze fixed ahead\u2014no dipping or lowering of the head. The camera performs a single, smooth push-in only: starting in a wider shot of her, the robots, and the desert, it moves steadily forward until she is in a medium or medium-close frame, then holds. She stops, posture and head still upright, and says: \u201cThe old gods are silent. I am not.\u201d Robot soldiers shift or march in place; sand and fabric move with the wind. No pull-back; the only camera move is the continuous push-in."
+    },
+    "class_type": "PrimitiveStringMultiline",
+    "_meta": {
+      "title": "Prompt"
+    }
+  },
+  "320:323": {
     "inputs": {
       "expression": "a * b + 1",
       "values.a": [
-        "267:225",
+        "320:301",
         0
       ],
       "values.b": [
-        "267:260",
+        "320:300",
         0
       ]
     },
@@ -670,29 +683,17 @@
       "title": "Math Expression (length)"
     }
   },
-  "267:325": {
-    "inputs": {
-      "width": 512,
-      "height": 512,
-      "batch_size": 1,
-      "color": 0
-    },
-    "class_type": "EmptyImage",
-    "_meta": {
-      "title": "EmptyImage"
-    }
-  },
-  "267:326": {
+  "320:324": {
     "inputs": {
       "lora_name": "gemma-3-12b-it-abliterated_lora_rank64_bf16.safetensors",
-      "strength_model": 1.0,
-      "strength_clip": 1.0,
+      "strength_model": 1,
+      "strength_clip": 1,
       "model": [
-        "267:232",
+        "320:285",
         0
       ],
       "clip": [
-        "267:243",
+        "320:317",
         0
       ]
     },
@@ -701,10 +702,10 @@
       "title": "Load LoRA (Model and CLIP)"
     }
   },
-  "267:327": {
+  "320:325": {
     "inputs": {
       "prompt": [
-        "267:266",
+        "320:319",
         0
       ],
       "max_length": 2048,
@@ -716,7 +717,7 @@
       "sampling_mode.repetition_penalty": 1.05,
       "sampling_mode.seed": 0,
       "clip": [
-        "267:326",
+        "320:324",
         1
       ]
     },
@@ -725,13 +726,13 @@
       "title": "TextGenerateLTX2Prompt"
     }
   },
-  "267:328": {
+  "320:326": {
     "inputs": {
-      "preview_markdown": "",
-      "preview_text": "",
+      "preview_markdown": "Style: Cinematic and realistic, with a subtle blend of ancient and futuristic elements.\n\nA woman\u2014Egyptian royal in a blue-and-gold headdress and high collar\u2014walks steadily forward, head held level and gaze fixed ahead\u2014no dipping or lowering of the head\u2014in a desert landscape. She wears a white dress with golden embroidery and armbands. Behind her, robot soldiers stand in formation left and right. The camera performs a single, smooth push-in only: starting in a wider shot of her, the robots, and the desert, it moves steadily forward until she is in a medium or medium-close frame, then holds. She stops, posture and head still upright, and says: \u201cThe old gods are silent. I am not.\u201d Robot soldiers shift or march in place; sand and fabric move with the wind. No pull-back; the only camera move is the continuous push-in.",
+      "preview_text": "Style: Cinematic and realistic, with a subtle blend of ancient and futuristic elements.\n\nA woman\u2014Egyptian royal in a blue-and-gold headdress and high collar\u2014walks steadily forward, head held level and gaze fixed ahead\u2014no dipping or lowering of the head\u2014in a desert landscape. She wears a white dress with golden embroidery and armbands. Behind her, robot soldiers stand in formation left and right. The camera performs a single, smooth push-in only: starting in a wider shot of her, the robots, and the desert, it moves steadily forward until she is in a medium or medium-close frame, then holds. She stops, posture and head still upright, and says: \u201cThe old gods are silent. I am not.\u201d Robot soldiers shift or march in place; sand and fabric move with the wind. No pull-back; the only camera move is the continuous push-in.",
       "previewMode": null,
       "source": [
-        "267:329",
+        "320:327",
         0
       ]
     },
@@ -740,18 +741,18 @@
       "title": "Preview as Text"
     }
   },
-  "267:329": {
+  "320:327": {
     "inputs": {
       "switch": [
-        "267:330",
+        "320:328",
         0
       ],
       "on_false": [
-        "267:266",
+        "320:319",
         0
       ],
       "on_true": [
-        "267:327",
+        "320:325",
         0
       ]
     },
@@ -760,7 +761,7 @@
       "title": "Switch"
     }
   },
-  "267:330": {
+  "320:328": {
     "inputs": {
       "value": true
     },
@@ -774,7 +775,7 @@
       "batch_index": 999,
       "length": 1,
       "image": [
-        "267:251",
+        "320:315",
         0
       ]
     },

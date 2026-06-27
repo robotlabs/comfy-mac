@@ -70,6 +70,17 @@ const el = {
   loraHighField: $("loraHighField"),
   loraLow: $("loraLow"),
   loraLowField: $("loraLowField"),
+  condStrength: $("condStrength"), condStrengthField: $("condStrengthField"),
+  condStrengthRefine: $("condStrengthRefine"), condStrengthRefineField: $("condStrengthRefineField"),
+  gemmaTemp: $("gemmaTemp"), gemmaTempField: $("gemmaTempField"),
+  gemmaTopK: $("gemmaTopK"), gemmaTopKField: $("gemmaTopKField"),
+  gemmaTopP: $("gemmaTopP"), gemmaTopPField: $("gemmaTopPField"),
+  gemmaMinP: $("gemmaMinP"), gemmaMinPField: $("gemmaMinPField"),
+  gemmaRepPen: $("gemmaRepPen"), gemmaRepPenField: $("gemmaRepPenField"),
+  imgCompression: $("imgCompression"), imgCompressionField: $("imgCompressionField"),
+  upscaleModel: $("upscaleModel"), upscaleModelField: $("upscaleModelField"),
+  cameraPose: $("cameraPose"), cameraPoseField: $("cameraPoseField"),
+  speed: $("speed"), speedField: $("speedField"),
   resultVideo: $("resultVideo"),
   tabs: $("tabs"),
   controls: $("controls"),
@@ -158,6 +169,17 @@ function fmtEta(ms) {
 let currentWrap = null; // the result currently shown in the canvas
 let onRenderDone = null; // resolves when the in-flight single render completes
 const imageWraps = new Map(); // promptId -> history thumbnail element
+let renderSeq = 0; // monotonic render-order counter (1 = first render this session)
+
+// Pull the saved filename out of an /api/image?filename=… URL (for the copy caption).
+function filenameFromUrl(u) {
+  try {
+    const q = new URLSearchParams((u || "").split("?")[1] || "");
+    return q.get("filename") || u || "";
+  } catch {
+    return u || "";
+  }
+}
 
 // Workflows
 let workflowsList = [];
@@ -209,7 +231,7 @@ if (saved.exportFormat) el.exportFormat.value = saved.exportFormat;
 if (saved.randomize === false) setRandomize(false);
 if (saved.sbOverrideEnable) el.sbOverrideEnable.checked = true;
 if (saved.sbOverrideCount) el.sbOverrideCount.value = saved.sbOverrideCount;
-queue = (saved.queue || []).map((q) => ({ positive: q.positive, negative: q.negative, prefix: q.prefix || "" }));
+queue = (saved.queue || []).map((q) => ({ positive: q.positive, negative: q.negative, prefix: q.prefix || "", image: q.image }));
 
 function persist() {
   localStorage.setItem(
@@ -242,7 +264,7 @@ function persist() {
       exportFormat: el.exportFormat.value,
       sbOverrideEnable: el.sbOverrideEnable.checked,
       sbOverrideCount: el.sbOverrideCount.value,
-      queue: queue.map((q) => ({ positive: q.positive, negative: q.negative, prefix: q.prefix })),
+      queue: queue.map((q) => ({ positive: q.positive, negative: q.negative, prefix: q.prefix, image: q.image })),
     }),
   );
 }
@@ -396,6 +418,17 @@ function applyWorkflow(id, applyDefaults) {
   el.shiftField.classList.toggle("hidden", !has.shift);
   el.loraHighField.classList.toggle("hidden", !has.loraHigh);
   el.loraLowField.classList.toggle("hidden", !has.loraLow);
+  el.condStrengthField.classList.toggle("hidden", !has.condStrength);
+  el.condStrengthRefineField.classList.toggle("hidden", !has.condStrengthRefine);
+  el.gemmaTempField.classList.toggle("hidden", !has.gemmaTemp);
+  el.gemmaTopKField.classList.toggle("hidden", !has.gemmaTopK);
+  el.gemmaTopPField.classList.toggle("hidden", !has.gemmaTopP);
+  el.gemmaMinPField.classList.toggle("hidden", !has.gemmaMinP);
+  el.gemmaRepPenField.classList.toggle("hidden", !has.gemmaRepPen);
+  el.imgCompressionField.classList.toggle("hidden", !has.imgCompression);
+  el.upscaleModelField.classList.toggle("hidden", !has.upscaleModel);
+  el.cameraPoseField.classList.toggle("hidden", !has.cameraPose);
+  el.speedField.classList.toggle("hidden", !has.speed);
   el.framesField.classList.toggle("hidden", !has.frames);
   el.fpsField.classList.toggle("hidden", !has.fps);
   // The WAN-video notes "?" is specific to that workflow for now — show it only there.
@@ -414,6 +447,24 @@ function applyWorkflow(id, applyDefaults) {
   if (wd0.shift != null) el.shift.value = wd0.shift;
   if (wd0.loraHigh != null) el.loraHigh.value = wd0.loraHigh;
   if (wd0.loraLow != null) el.loraLow.value = wd0.loraLow;
+  if (wd0.condStrength != null) el.condStrength.value = wd0.condStrength;
+  if (wd0.condStrengthRefine != null) el.condStrengthRefine.value = wd0.condStrengthRefine;
+  if (wd0.gemmaTemp != null) el.gemmaTemp.value = wd0.gemmaTemp;
+  if (wd0.gemmaTopK != null) el.gemmaTopK.value = wd0.gemmaTopK;
+  if (wd0.gemmaTopP != null) el.gemmaTopP.value = wd0.gemmaTopP;
+  if (wd0.gemmaMinP != null) el.gemmaMinP.value = wd0.gemmaMinP;
+  if (wd0.gemmaRepPen != null) el.gemmaRepPen.value = wd0.gemmaRepPen;
+  if (wd0.imgCompression != null) el.imgCompression.value = wd0.imgCompression;
+  // Per-target upscale options: if the workflow declares its own list (runpod uses .pth),
+  // rebuild the dropdown from it. Otherwise leave the static HTML options (local = .safetensors).
+  if (Array.isArray(currentWorkflow.upscaleModels)) {
+    el.upscaleModel.innerHTML = currentWorkflow.upscaleModels
+      .map((m) => `<option value="${m}">${m}</option>`)
+      .join("");
+  }
+  if (wd0.upscaleModel != null) el.upscaleModel.value = wd0.upscaleModel;
+  if (wd0.cameraPose != null) el.cameraPose.value = wd0.cameraPose;
+  if (wd0.speed != null) el.speed.value = wd0.speed;
   if ((parseInt(el.steps.value) || 0) < el.steps.min) el.steps.value = el.steps.min;
   renderToggles();
 
@@ -585,7 +636,10 @@ function clearImage(slot) {
 
 for (const slot of imageSlots) {
   slot.hintDefault = slot.hint.textContent; // restored by clearImage after a video filename overwrite
-  slot.dropzone.addEventListener("click", () => slot.input.click());
+  // The file <input> lives INSIDE the dropzone, so input.click() bubbles back to this
+  // handler → infinite recursion → tab crash. Only open the picker for real user clicks
+  // on the dropzone/its labels, not for the synthetic click bubbling up from the input.
+  slot.dropzone.addEventListener("click", (e) => { if (e.target !== slot.input) slot.input.click(); });
   slot.input.addEventListener("change", () => uploadImageFile(slot, slot.input.files[0]));
   slot.clear.addEventListener("click", (e) => {
     e.stopPropagation();
@@ -833,12 +887,12 @@ function updateQueueStatus(n) {
 }
 
 // ---- Generate ----
-function buildBody(positive, negative, seed, prefixOverride) {
+function buildBody(positive, negative, seed, prefixOverride, imageOverride) {
   return {
     workflow: currentWorkflow?.id,
     positive,
     negative,
-    image: imgSlot("image").uploaded,
+    image: imageOverride || imgSlot("image").uploaded,
     image2: imgSlot("image2").uploaded,
     seed,
     // Batch items carry their own filename prefix; fall back to the global field when blank.
@@ -858,6 +912,17 @@ function buildBody(positive, negative, seed, prefixOverride) {
     shift: el.shift.value,
     loraHigh: el.loraHigh.value,
     loraLow: el.loraLow.value,
+    condStrength: el.condStrength.value,
+    condStrengthRefine: el.condStrengthRefine.value,
+    gemmaTemp: el.gemmaTemp.value,
+    gemmaTopK: el.gemmaTopK.value,
+    gemmaTopP: el.gemmaTopP.value,
+    gemmaMinP: el.gemmaMinP.value,
+    gemmaRepPen: el.gemmaRepPen.value,
+    imgCompression: el.imgCompression.value,
+    upscaleModel: el.upscaleModel.value,
+    cameraPose: el.cameraPose.value,
+    speed: el.speed.value,
     toggles: { ...toggleState },
     exportFormat: el.exportFormat.value,
   };
@@ -884,6 +949,17 @@ function paramsFrom(body, seed) {
     shift: body.shift,
     loraHigh: body.loraHigh,
     loraLow: body.loraLow,
+    condStrength: body.condStrength,
+    condStrengthRefine: body.condStrengthRefine,
+    gemmaTemp: body.gemmaTemp,
+    gemmaTopK: body.gemmaTopK,
+    gemmaTopP: body.gemmaTopP,
+    gemmaMinP: body.gemmaMinP,
+    gemmaRepPen: body.gemmaRepPen,
+    imgCompression: body.imgCompression,
+    upscaleModel: body.upscaleModel,
+    cameraPose: body.cameraPose,
+    speed: body.speed,
     toggles: body.toggles,
     prefix: body.prefix,
     seed,
@@ -1101,7 +1177,28 @@ function addHistory(url, meta, seed, params, isVideo) {
     deleteThumb(wrap);
   });
 
-  wrap.append(media, del);
+  // Render-order number badge (stable for the session; 1 = first rendered).
+  wrap._num = ++renderSeq;
+  const num = document.createElement("div");
+  num.className = "thumb-num";
+  num.textContent = wrap._num;
+
+  // Hover caption: "video · name" / "img · name". Click copies the filename.
+  const fname = filenameFromUrl(url);
+  const label = (isVideo ? "video" : "img") + " · " + fname;
+  const cap = document.createElement("div");
+  cap.className = "thumb-cap";
+  cap.textContent = label;
+  cap.title = label + "  (clic per copiare il nome)";
+  cap.addEventListener("click", (e) => {
+    e.stopPropagation();
+    navigator.clipboard.writeText(fname).then(
+      () => toast("Copiato: " + fname),
+      () => toast("Copia non riuscita"),
+    );
+  });
+
+  wrap.append(media, del, num, cap);
   el.history.prepend(wrap);
   while (el.history.children.length > 50) el.history.lastChild.remove();
   return wrap;
@@ -1190,7 +1287,7 @@ function renderQueue() {
     body.className = "q-body";
     const text = document.createElement("div");
     text.className = "q-text";
-    text.textContent = item.positive || "(empty prompt)";
+    text.textContent = item.positive || item.image || "(empty prompt)";
 
     // Per-item filename prefix — each queue item saves under its own name.
     const name = document.createElement("input");
@@ -1253,15 +1350,27 @@ function setItemStatus(item, text, kind) {
 }
 
 function addToQueue() {
-  const positive = el.positive.value.trim();
-  if (!positive) {
-    toast("Type a positive prompt first");
-    return;
+  // No-prompt workflows (e.g. video upscale): each queue item carries its OWN input video,
+  // snapshotted at add-time — so you can batch several different videos unattended.
+  const noPrompt = currentWorkflow?.promptMode === "none" || currentWorkflow?.has?.prompt === false;
+  if (noPrompt) {
+    const img = imgSlot("image").uploaded;
+    if (!img) {
+      toast("Carica un video di input prima");
+      return;
+    }
+    queue.push({ image: img, prefix: el.prefix.value.trim() });
+  } else {
+    const positive = el.positive.value.trim();
+    if (!positive) {
+      toast("Type a positive prompt first");
+      return;
+    }
+    queue.push({ positive, negative: el.negative.value, prefix: el.prefix.value.trim() });
+    el.positive.value = "";
+    el.positive.focus();
   }
-  queue.push({ positive, negative: el.negative.value, prefix: el.prefix.value.trim() });
-  el.positive.value = "";
   persist();
-  el.positive.focus();
   renderQueue();
   updateRunButton();
 }
@@ -1277,7 +1386,10 @@ function clearQueueFn() {
 
 async function runQueue() {
   if (batchActive || rendering || !queue.length) return;
-  if (needsImageButMissing()) return;
+  // No-prompt workflows carry a per-item input video, so the global "missing image" check
+  // doesn't apply; for prompt workflows keep guarding the shared input.
+  const noPrompt = currentWorkflow?.promptMode === "none" || currentWorkflow?.has?.prompt === false;
+  if (!noPrompt && needsImageButMissing()) return;
   batchJobs.clear();
   const count = imageCount();
   queue.forEach((it) => {
@@ -1295,7 +1407,7 @@ async function runQueue() {
   for (const item of queue) {
     for (let k = 0; k < count; k++) {
       const seed = randomize ? "" : String(base + k);
-      const body = buildBody(item.positive, item.negative, seed, item.prefix);
+      const body = buildBody(item.positive, item.negative, seed, item.prefix, item.image);
       try {
         const res = await fetch("/api/generate", {
           method: "POST",

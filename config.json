@@ -17,6 +17,7 @@
   "workflows": [
     {
       "id": "z-image-turbo",
+      "target": "both",
       "name": "Z-Image Turbo",
       "type": "text2img",
       "template": "server/workflows/z-image-turbo.json",
@@ -38,6 +39,7 @@
     },
     {
       "id": "flux-schnell",
+      "target": "both",
       "name": "FLUX Schnell",
       "type": "text2img",
       "template": "server/workflows/flux-schnell.json",
@@ -57,6 +59,7 @@
     },
     {
       "id": "qwen-image-2512",
+      "target": "both",
       "name": "Qwen-Image 2512",
       "type": "text2img",
       "template": "server/workflows/qwen-image-2512.json",
@@ -80,6 +83,7 @@
     },
     {
       "id": "qwen-image-2512-turbo",
+      "target": "both",
       "name": "Qwen-Image 2512 Turbo",
       "type": "text2img",
       "template": "server/workflows/qwen-image-2512-turbo.json",
@@ -101,7 +105,7 @@
     {
       "id": "qwen-image-edit-2511",
       "name": "Qwen Image Edit 2511",
-      "target": "runpod",
+      "target": "local",
       "type": "text2img-img",
       "template": "server/workflows/qwen-image-edit-2511.json",
       "promptMode": "positive-negative",
@@ -125,6 +129,7 @@
     },
     {
       "id": "z-image-img2img",
+      "target": "both",
       "name": "Z-Image (img2img)",
       "type": "img2img",
       "template": "server/workflows/z-image-img2img.json",
@@ -144,28 +149,35 @@
       "defaults": { "steps": 20, "cfg": 8.0, "sampler": "euler", "scheduler": "normal", "denoise": 0.5 }
     },
     {
-      "id": "wan-img2vid",
-      "name": "WAN Image→Video",
+      "id": "wan2.2-i2v-local",
+      "name": "WAN 2.2 i2v nativo · 4-step (LAN)",
       "type": "img2vid",
-      "template": "server/workflows/wan-img2vid.json",
+      "template": "server/workflows/wan2.2-i2v.json",
       "promptMode": "positive-negative",
       "fields": {
-        "image":      { "node": "148", "field": "image" },
-        "positive":   { "node": "134", "field": "text" },
-        "negative":   { "node": "137", "field": "text" },
-        "resolution": { "node": "147", "field": "value" },
-        "seed":       [ { "node": "139", "field": "seed" }, { "node": "140", "field": "seed" } ],
-        "cfg":        [ { "node": "139", "field": "cfg" }, { "node": "140", "field": "cfg" } ],
-        "steps":      { "node": "150", "field": "value" },
-        "stepsBoundary": { "node": "151", "field": "value" },
-        "frames":     { "node": "156", "field": "num_frames" },
-        "fps":        { "node": "116", "field": "fps" },
-        "prefix":     { "node": "117", "field": "filename_prefix" }
+        "image":    { "node": "97", "field": "image" },
+        "positive": { "node": "129:93", "field": "text" },
+        "negative": { "node": "129:89", "field": "text" },
+        "seed":     { "node": "129:86", "field": "noise_seed" },
+        "width":    { "node": "129:98", "field": "width" },
+        "height":   { "node": "129:98", "field": "height" },
+        "frames":   { "node": "129:98", "field": "length" },
+        "fps":      { "node": "129:94", "field": "fps" },
+        "cfg":      { "node": "129:86", "field": "cfg" },
+        "steps":    [ { "node": "129:118", "field": "value" }, { "node": "129:128", "field": "value" } ],
+        "stepsBoundary": [ { "node": "129:124", "field": "value" }, { "node": "129:127", "field": "value" } ],
+        "shift": [
+          { "node": "129:103", "field": "shift" },
+          { "node": "129:104", "field": "shift" }
+        ],
+        "loraHigh": { "node": "129:101", "field": "strength_model" },
+        "loraLow":  { "node": "129:102", "field": "strength_model" },
+        "prefix":   { "node": "108", "field": "filename_prefix" }
       },
-      "defaults": { "resolution": 320, "steps": 20, "cfg": 5.0, "frames": 65, "fps": 32, "minSteps": 15, "stepsBoundaryRatio": 0.65 },
-      "exportFramesNode": "158",
-      "videoSaveNode": "117",
-      "vramSafe": { "tilingThreshold": 400, "vaeTilingNode": "158", "swapThreshold": 640, "blockSwapNode": "128", "blocksHigh": 30 }
+      "toggles": [
+        { "key": "fast", "label": "Lightning LoRA 4-step (veloce)", "node": "129:131", "field": "value", "default": true }
+      ],
+      "defaults": { "width": 432, "height": 768, "frames": 81, "fps": 32, "cfg": 1.0, "shift": 4, "loraHigh": 1.0, "loraLow": 1.0, "steps": 4, "stepsBoundaryRatio": 0.5 }
     },
     {
       "id": "wan2.2-i2v",
@@ -184,8 +196,8 @@
         "frames":   { "node": "129:98", "field": "length" },
         "fps":      { "node": "129:94", "field": "fps" },
         "cfg":      { "node": "129:86", "field": "cfg" },
-        "steps":    { "node": "129:118", "field": "value" },
-        "stepsBoundary": { "node": "129:124", "field": "value" },
+        "steps":    [ { "node": "129:118", "field": "value" }, { "node": "129:128", "field": "value" } ],
+        "stepsBoundary": [ { "node": "129:124", "field": "value" }, { "node": "129:127", "field": "value" } ],
         "shift": [
           { "node": "129:103", "field": "shift" },
           { "node": "129:104", "field": "shift" }
@@ -197,7 +209,7 @@
       "toggles": [
         { "key": "fast", "label": "Lightning LoRA 4-step (veloce)", "node": "129:131", "field": "value", "default": true }
       ],
-      "defaults": { "width": 720, "height": 1280, "frames": 81, "fps": 64, "cfg": 1.0, "shift": 4, "loraHigh": 1.0, "loraLow": 1.0, "steps": 8, "stepsBoundaryRatio": 0.5 }
+      "defaults": { "width": 480, "height": 848, "frames": 81, "fps": 64, "cfg": 1.0, "shift": 4, "loraHigh": 1.0, "loraLow": 1.0, "steps": 4, "stepsBoundaryRatio": 0.5 }
     },
     {
       "id": "wan2.2-i2v-hq",
@@ -223,10 +235,40 @@
           { "node": "129:103", "field": "shift" },
           { "node": "129:104", "field": "shift" }
         ],
+        "steps":         { "node": "129:128", "field": "value" },
+        "stepsBoundary": { "node": "129:127", "field": "value" },
         "prefix":   { "node": "108", "field": "filename_prefix" }
       },
       "defaultNegative": "deformed, mutated hands, extra fingers, extra arms, extra limbs, distorted face, bad anatomy, blurry, low quality, jpeg artifacts, watermark, text, multiple people, second person, duplicate body, melting clothes, floating limbs, static, still, motionless, frozen, slow motion, time-lapse, stutter",
-      "defaults": { "width": 480, "height": 848, "frames": 81, "fps": 32, "cfg": 3.5, "shift": 5 }
+      "defaults": { "width": 480, "height": 848, "frames": 81, "fps": 32, "cfg": 3.5, "shift": 5, "steps": 20, "stepsBoundaryRatio": 0.5 }
+    },
+    {
+      "id": "wan2.2-t2v-local",
+      "name": "WAN 2.2 Text→Video · 4-step (LAN)",
+      "type": "text2vid",
+      "target": "local",
+      "template": "server/workflows/wan2.2-t2v.json",
+      "promptMode": "single",
+      "fields": {
+        "prompt": { "node": "128:89", "field": "text" },
+        "seed":   { "node": "128:81", "field": "noise_seed" },
+        "width":  { "node": "128:74", "field": "width" },
+        "height": { "node": "128:74", "field": "height" },
+        "frames": { "node": "128:74", "field": "length" },
+        "fps": { "node": "128:88", "field": "fps" },
+        "steps": { "node": "128:117", "field": "value" },
+        "stepsBoundary": { "node": "128:118", "field": "value" },
+        "shift": [
+          { "node": "128:82", "field": "shift" },
+          { "node": "128:86", "field": "shift" }
+        ],
+        "loraHigh": { "node": "128:83", "field": "strength_model" },
+        "prefix": { "node": "80", "field": "filename_prefix" }
+      },
+      "toggles": [
+        { "key": "fast", "label": "Lightning LoRA 4-step (veloce)", "node": "128:129", "field": "value", "default": true }
+      ],
+      "defaults": { "width": 480, "height": 848, "frames": 81, "fps": 32, "shift": 4, "loraHigh": 1.0, "steps": 8, "stepsBoundaryRatio": 0.5 }
     },
     {
       "id": "wan2.2-t2v",
@@ -289,6 +331,60 @@
       "defaults": { "width": 480, "height": 848, "duration": 5, "fps": 24, "cfg": 3.5, "shift": 5, "steps": 20, "stepsBoundaryRatio": 0.5 }
     },
     {
+      "id": "ltx-2.3-t2v-hq-local",
+      "name": "LTX-2.3 Text→Video HQ (LAN)",
+      "type": "text2vid",
+      "target": "local",
+      "template": "server/workflows/ltx-2.3-t2v-hq.json",
+      "promptMode": "single",
+      "fields": {
+        "prompt": { "node": "267:266", "field": "value" },
+        "seed":   { "node": "267:237", "field": "noise_seed" },
+        "width":  { "node": "267:257", "field": "value" },
+        "height": { "node": "267:258", "field": "value" },
+        "duration": { "node": "267:225", "field": "value" },
+        "fps": { "node": "267:260", "field": "value" },
+        "steps": { "node": "267:900", "field": "steps" },
+        "cfg": { "node": "267:231", "field": "cfg" },
+        "gemmaTemp":   { "node": "267:327", "field": "sampling_mode.temperature" },
+        "gemmaTopK":   { "node": "267:327", "field": "sampling_mode.top_k" },
+        "gemmaTopP":   { "node": "267:327", "field": "sampling_mode.top_p" },
+        "gemmaMinP":   { "node": "267:327", "field": "sampling_mode.min_p" },
+        "gemmaRepPen": { "node": "267:327", "field": "sampling_mode.repetition_penalty" },
+        "prefix": { "node": "75", "field": "filename_prefix" }
+      },
+      "toggles": [
+        { "key": "enhance", "label": "Prompt Enhance (Gemma)", "node": "267:330", "field": "value", "default": true }
+      ],
+      "defaults": { "width": 1280, "height": 704, "duration": 5, "fps": 24, "steps": 14, "cfg": 1.8, "gemmaTemp": 0.3, "gemmaTopK": 64, "gemmaTopP": 0.95, "gemmaMinP": 0.05, "gemmaRepPen": 1.05 }
+    },
+    {
+      "id": "ltx-2.3-t2v-local",
+      "name": "LTX-2.3 Text→Video (LAN)",
+      "type": "text2vid",
+      "target": "local",
+      "template": "server/workflows/ltx-2.3-t2v.json",
+      "promptMode": "single",
+      "fields": {
+        "prompt": { "node": "267:266", "field": "value" },
+        "seed":   { "node": "267:237", "field": "noise_seed" },
+        "width":  { "node": "267:257", "field": "value" },
+        "height": { "node": "267:258", "field": "value" },
+        "duration": { "node": "267:225", "field": "value" },
+        "fps": { "node": "267:260", "field": "value" },
+        "gemmaTemp":   { "node": "267:327", "field": "sampling_mode.temperature" },
+        "gemmaTopK":   { "node": "267:327", "field": "sampling_mode.top_k" },
+        "gemmaTopP":   { "node": "267:327", "field": "sampling_mode.top_p" },
+        "gemmaMinP":   { "node": "267:327", "field": "sampling_mode.min_p" },
+        "gemmaRepPen": { "node": "267:327", "field": "sampling_mode.repetition_penalty" },
+        "prefix": { "node": "75", "field": "filename_prefix" }
+      },
+      "toggles": [
+        { "key": "enhance", "label": "Prompt Enhance (Gemma)", "node": "267:330", "field": "value", "default": true }
+      ],
+      "defaults": { "width": 1280, "height": 720, "duration": 5, "fps": 24, "gemmaTemp": 0.3, "gemmaTopK": 64, "gemmaTopP": 0.95, "gemmaMinP": 0.05, "gemmaRepPen": 1.05 }
+    },
+    {
       "id": "ltx-2.3-t2v",
       "name": "LTX-2.3 Text→Video",
       "type": "text2vid",
@@ -301,15 +397,88 @@
         "width":  { "node": "267:257", "field": "value" },
         "height": { "node": "267:258", "field": "value" },
         "duration": { "node": "267:225", "field": "value" },
+        "fps": { "node": "267:260", "field": "value" },
+        "gemmaTemp":   { "node": "267:327", "field": "sampling_mode.temperature" },
+        "gemmaTopK":   { "node": "267:327", "field": "sampling_mode.top_k" },
+        "gemmaTopP":   { "node": "267:327", "field": "sampling_mode.top_p" },
+        "gemmaMinP":   { "node": "267:327", "field": "sampling_mode.min_p" },
+        "gemmaRepPen": { "node": "267:327", "field": "sampling_mode.repetition_penalty" },
         "prefix": { "node": "75", "field": "filename_prefix" }
       },
       "toggles": [
         { "key": "enhance", "label": "Prompt Enhance (Gemma)", "node": "267:330", "field": "value", "default": true }
       ],
-      "defaults": { "width": 1280, "height": 720, "duration": 5 }
+      "defaults": { "width": 1280, "height": 720, "duration": 5, "fps": 24, "gemmaTemp": 0.3, "gemmaTopK": 64, "gemmaTopP": 0.95, "gemmaMinP": 0.05, "gemmaRepPen": 1.05 }
+    },
+    {
+      "id": "ltx-2.3-i2v-local",
+      "name": "LTX-2.3 Image→Video (LAN)",
+      "type": "img2vid",
+      "target": "local",
+      "template": "server/workflows/ltx-2.3-i2v.json",
+      "promptMode": "single",
+      "fields": {
+        "image":  { "node": "269", "field": "image" },
+        "prompt": { "node": "320:319", "field": "value" },
+        "seed": [
+          { "node": "320:276", "field": "noise_seed" },
+          { "node": "320:277", "field": "noise_seed" }
+        ],
+        "width":  { "node": "320:312", "field": "value" },
+        "height": { "node": "320:299", "field": "value" },
+        "duration": { "node": "320:301", "field": "value" },
+        "fps": { "node": "320:300", "field": "value" },
+        "condStrength":       { "node": "320:296", "field": "strength" },
+        "condStrengthRefine": { "node": "320:288", "field": "strength" },
+        "gemmaTemp":   { "node": "320:325", "field": "sampling_mode.temperature" },
+        "gemmaTopK":   { "node": "320:325", "field": "sampling_mode.top_k" },
+        "gemmaTopP":   { "node": "320:325", "field": "sampling_mode.top_p" },
+        "gemmaMinP":   { "node": "320:325", "field": "sampling_mode.min_p" },
+        "gemmaRepPen": { "node": "320:325", "field": "sampling_mode.repetition_penalty" },
+        "imgCompression": { "node": "320:289", "field": "img_compression" },
+        "prefix": { "node": "75", "field": "filename_prefix" }
+      },
+      "toggles": [
+        { "key": "enhance", "label": "Prompt Enhance (Gemma)", "node": "320:328", "field": "value", "default": true }
+      ],
+      "defaults": { "width": 1280, "height": 720, "duration": 5, "fps": 24, "condStrength": 0.7, "condStrengthRefine": 1.0, "gemmaTemp": 0.3, "gemmaTopK": 64, "gemmaTopP": 0.95, "gemmaMinP": 0.05, "gemmaRepPen": 1.05, "imgCompression": 8 }
+    },
+    {
+      "id": "ltx-2.3-i2v",
+      "name": "LTX-2.3 Image→Video",
+      "type": "img2vid",
+      "target": "runpod",
+      "template": "server/workflows/ltx-2.3-i2v.json",
+      "promptMode": "single",
+      "fields": {
+        "image":  { "node": "269", "field": "image" },
+        "prompt": { "node": "320:319", "field": "value" },
+        "seed": [
+          { "node": "320:276", "field": "noise_seed" },
+          { "node": "320:277", "field": "noise_seed" }
+        ],
+        "width":  { "node": "320:312", "field": "value" },
+        "height": { "node": "320:299", "field": "value" },
+        "duration": { "node": "320:301", "field": "value" },
+        "fps": { "node": "320:300", "field": "value" },
+        "condStrength":       { "node": "320:296", "field": "strength" },
+        "condStrengthRefine": { "node": "320:288", "field": "strength" },
+        "gemmaTemp":   { "node": "320:325", "field": "sampling_mode.temperature" },
+        "gemmaTopK":   { "node": "320:325", "field": "sampling_mode.top_k" },
+        "gemmaTopP":   { "node": "320:325", "field": "sampling_mode.top_p" },
+        "gemmaMinP":   { "node": "320:325", "field": "sampling_mode.min_p" },
+        "gemmaRepPen": { "node": "320:325", "field": "sampling_mode.repetition_penalty" },
+        "imgCompression": { "node": "320:289", "field": "img_compression" },
+        "prefix": { "node": "75", "field": "filename_prefix" }
+      },
+      "toggles": [
+        { "key": "enhance", "label": "Prompt Enhance (Gemma)", "node": "320:328", "field": "value", "default": true }
+      ],
+      "defaults": { "width": 1280, "height": 720, "duration": 5, "fps": 24, "condStrength": 0.7, "condStrengthRefine": 1.0, "gemmaTemp": 0.3, "gemmaTopK": 64, "gemmaTopP": 0.95, "gemmaMinP": 0.05, "gemmaRepPen": 1.05, "imgCompression": 8 }
     },
     {
       "id": "wan-upscale",
+      "target": "both",
       "name": "Fast GAN Video Upscale (4×)",
       "type": "video-upscale",
       "template": "server/workflows/wan-upscale.json",
@@ -319,6 +488,56 @@
         "prefix": { "node": "12", "field": "filename_prefix" }
       },
       "defaults": {}
+    },
+    {
+      "id": "video-upscale",
+      "target": "both",
+      "name": "Video Upscale flex (modello + resize finale)",
+      "type": "video-upscale",
+      "template": "server/workflows/video-upscale.json",
+      "promptMode": "none",
+      "fields": {
+        "image":        { "node": "9",  "field": "file" },
+        "upscaleModel": { "node": "1",  "field": "model_name" },
+        "width":        { "node": "3",  "field": "width" },
+        "height":       { "node": "3",  "field": "height" },
+        "prefix":       { "node": "12", "field": "filename_prefix" }
+      },
+      "defaults": { "upscaleModel": "RealESRGAN_x4plus.safetensors", "width": 1080, "height": 1920 }
+    },
+    {
+      "id": "wan2.2-fun-camera",
+      "target": "both",
+      "name": "WAN 2.2 Fun Camera (controllo camera)",
+      "type": "img2vid",
+      "template": "server/workflows/wan2.2-fun-camera.json",
+      "promptMode": "positive-negative",
+      "fields": {
+        "image":      { "node": "97", "field": "image" },
+        "positive":   { "node": "107", "field": "text" },
+        "negative":   { "node": "99", "field": "text" },
+        "cameraPose": { "node": "108", "field": "camera_pose" },
+        "speed":      { "node": "108", "field": "speed" },
+        "width":      { "node": "108", "field": "width" },
+        "height":     { "node": "108", "field": "height" },
+        "frames":     { "node": "108", "field": "length" },
+        "seed":       { "node": "102", "field": "noise_seed" },
+        "cfg":        [ { "node": "102", "field": "cfg" }, { "node": "103", "field": "cfg" } ],
+        "steps":      [ { "node": "102", "field": "steps" }, { "node": "103", "field": "steps" } ],
+        "stepsBoundary": [ { "node": "102", "field": "end_at_step" }, { "node": "103", "field": "start_at_step" } ],
+        "shift":      [ { "node": "100", "field": "shift" }, { "node": "101", "field": "shift" } ],
+        "loraHigh":   { "node": "200", "field": "strength_model" },
+        "loraLow":    { "node": "201", "field": "strength_model" },
+        "fps":        { "node": "105", "field": "fps" },
+        "prefix":     { "node": "106", "field": "filename_prefix" }
+      },
+      "toggles": [
+        { "key": "fast", "label": "Lightning LoRA 4-step (veloce)", "node": ["200", "201"], "field": "strength_model", "offValue": 0, "default": true }
+      ],
+      "exportFramesNode": "104",
+      "videoSaveNode": "106",
+      "defaultNegative": "static, blurry, low quality, jpeg artifacts, deformed, bad anatomy, extra limbs, extra fingers, distorted face, watermark, text, cluttered background",
+      "defaults": { "cameraPose": "Zoom In", "speed": 1.0, "width": 432, "height": 768, "frames": 81, "fps": 16, "cfg": 1.0, "shift": 4, "loraHigh": 1.0, "loraLow": 1.0, "steps": 4, "stepsBoundaryRatio": 0.5 }
     }
   ]
 }

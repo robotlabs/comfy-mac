@@ -21,6 +21,14 @@ export class ComfyClient {
   }
 
   connect() {
+    // Tear down any previous socket first so its listeners can't pile up (the close→reconnect
+    // loop would otherwise leak listeners and overlap reconnect timers → MaxListenersExceeded).
+    if (this._reconnectTimer) { clearTimeout(this._reconnectTimer); this._reconnectTimer = null; }
+    if (this.ws) {
+      try { this.ws.removeAllListeners(); this.ws.terminate(); } catch {}
+      this.ws = null;
+    }
+
     const url = `${this.wsBase}/ws?clientId=${this.clientId}`;
     const ws = new WebSocket(url);
     this.ws = ws;
@@ -42,7 +50,11 @@ export class ComfyClient {
     ws.on("close", () => {
       this.connected = false;
       this.emit({ type: "_socket", data: { connected: false } });
-      setTimeout(() => this.connect(), 2000);
+      // Only the CURRENT socket schedules a reconnect — a stale socket closing must not spawn
+      // a second reconnect loop (that's what leaked listeners / overlapped timers).
+      if (this.ws === ws && !this._reconnectTimer) {
+        this._reconnectTimer = setTimeout(() => { this._reconnectTimer = null; this.connect(); }, 2000);
+      }
     });
 
     ws.on("error", () => ws.close());

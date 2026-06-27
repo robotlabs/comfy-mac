@@ -25,8 +25,8 @@
   },
   "129:98": {
     "inputs": {
-      "width": 480,
-      "height": 848,
+      "width": 720,
+      "height": 1280,
       "length": [
         "129:163",
         1
@@ -69,7 +69,7 @@
   },
   "129:104": {
     "inputs": {
-      "shift": 4.0,
+      "shift": 3.0,
       "model": [
         "129:116",
         0
@@ -133,11 +133,11 @@
   },
   "129:131": {
     "inputs": {
-      "value": true
+      "value": false
     },
     "class_type": "PrimitiveBoolean",
     "_meta": {
-      "title": "Enable 4steps LoRA?"
+      "title": "Enable 4steps LoRA? (HQ: baked OFF = no lora)"
     }
   },
   "129:90": {
@@ -234,7 +234,7 @@
         "129:119",
         0
       ],
-      "cfg": 1.0,
+      "cfg": 3.0,
       "sampler_name": "euler",
       "scheduler": "simple",
       "start_at_step": 0,
@@ -273,7 +273,7 @@
         "129:119",
         0
       ],
-      "cfg": 1.0,
+      "cfg": 3.5,
       "sampler_name": "euler",
       "scheduler": "simple",
       "start_at_step": [
@@ -318,7 +318,7 @@
   },
   "129:124": {
     "inputs": {
-      "value": 2
+      "value": 4
     },
     "class_type": "PrimitiveInt",
     "_meta": {
@@ -327,7 +327,7 @@
   },
   "129:118": {
     "inputs": {
-      "value": 4
+      "value": 8
     },
     "class_type": "PrimitiveInt",
     "_meta": {
@@ -416,7 +416,7 @@
   },
   "129:103": {
     "inputs": {
-      "shift": 4.0,
+      "shift": 3.0,
       "model": [
         "129:117",
         0

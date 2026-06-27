@@ -597,6 +597,46 @@ button { font-family: var(--font); }
 }
 .thumb:hover .thumb-del { display: flex; }
 .thumb-del:hover { filter: brightness(1.15); }
+/* Render-order number badge (1 = first rendered this session) */
+.thumb-num {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  min-width: 14px;
+  height: 14px;
+  padding: 0 3px;
+  border-radius: 7px;
+  background: rgba(0, 0, 0, 0.65);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 14px;
+  text-align: center;
+  pointer-events: none;
+  z-index: 2;
+}
+/* Hover caption: "video · name" / "img · name" — click to copy the filename */
+.thumb-cap {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: none;
+  padding: 2px 4px;
+  background: rgba(0, 0, 0, 0.78);
+  color: #fff;
+  font-size: 9px;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  border-bottom-left-radius: 8px;
+  border-bottom-right-radius: 8px;
+  cursor: copy;
+  z-index: 2;
+}
+.thumb:hover .thumb-cap { display: block; }
+.thumb-cap:hover { background: var(--accent); }
 
 /* ---- Misc ---- */
 .hidden { display: none !important; }

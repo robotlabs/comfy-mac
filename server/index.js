@@ -25,9 +25,21 @@ const workflows = new Map();
 let targetWorkflowDefs = [];
 let defaultWorkflowId;
 
+// Each target reads its OWN config so editing one never touches the other:
+// runpod → config.runpod.json (+ server/workflows-runpod/ templates), local → config.json.
+// Falls back to config.json if the runpod copy is missing.
+const CONFIG_FILE =
+  TARGET === "runpod" && existsSync(join(root, "config.runpod.json"))
+    ? "config.runpod.json"
+    : "config.json";
+
 async function loadConfig() {
-  config = JSON.parse(await readFile(join(root, "config.json"), "utf8"));
-  targetWorkflowDefs = config.workflows.filter((w) => (w.target || "local") === TARGET);
+  config = JSON.parse(await readFile(join(root, CONFIG_FILE), "utf8"));
+  // A workflow's "target" can be "local", "runpod", or "both" (shown on both instances).
+  targetWorkflowDefs = config.workflows.filter((w) => {
+    const t = w.target || "local";
+    return t === TARGET || t === "both";
+  });
   workflows.clear();
   for (const wf of targetWorkflowDefs) {
     const template = JSON.parse(await readFile(join(root, wf.template), "utf8"));
@@ -300,6 +312,7 @@ app.get("/api/config", (req, res) => {
       target: w.target || "local",
       promptMode: w.promptMode,
       defaults: w.defaults,
+      upscaleModels: w.upscaleModels,
       defaultNegative: defaultNegative || "",
       defaultPrefix: defaultPrefix || "",
       exportChoice: !!w.exportFramesNode,
@@ -324,6 +337,17 @@ app.get("/api/config", (req, res) => {
         shift: !!w.fields.shift,
         loraHigh: !!w.fields.loraHigh,
         loraLow: !!w.fields.loraLow,
+        condStrength: !!w.fields.condStrength,
+        condStrengthRefine: !!w.fields.condStrengthRefine,
+        gemmaTemp: !!w.fields.gemmaTemp,
+        gemmaTopK: !!w.fields.gemmaTopK,
+        gemmaTopP: !!w.fields.gemmaTopP,
+        gemmaMinP: !!w.fields.gemmaMinP,
+        gemmaRepPen: !!w.fields.gemmaRepPen,
+        imgCompression: !!w.fields.imgCompression,
+        upscaleModel: !!w.fields.upscaleModel,
+        cameraPose: !!w.fields.cameraPose,
+        speed: !!w.fields.speed,
       },
       };
     }),
@@ -373,6 +397,17 @@ app.post("/api/generate", async (req, res) => {
       shift,
       loraHigh,
       loraLow,
+      condStrength,
+      condStrengthRefine,
+      gemmaTemp,
+      gemmaTopK,
+      gemmaTopP,
+      gemmaMinP,
+      gemmaRepPen,
+      imgCompression,
+      upscaleModel,
+      cameraPose,
+      speed,
       prefix,
       saveDir,
     } = req.body;
@@ -433,15 +468,30 @@ app.post("/api/generate", async (req, res) => {
     if (shift !== undefined && shift !== "") setField(graph, f.shift, Number(shift));
     if (loraHigh !== undefined && loraHigh !== "") setField(graph, f.loraHigh, Number(loraHigh));
     if (loraLow !== undefined && loraLow !== "") setField(graph, f.loraLow, Number(loraLow));
+    if (condStrength !== undefined && condStrength !== "") setField(graph, f.condStrength, Number(condStrength));
+    if (condStrengthRefine !== undefined && condStrengthRefine !== "") setField(graph, f.condStrengthRefine, Number(condStrengthRefine));
+    if (gemmaTemp !== undefined && gemmaTemp !== "") setField(graph, f.gemmaTemp, Number(gemmaTemp));
+    if (gemmaTopK !== undefined && gemmaTopK !== "") setField(graph, f.gemmaTopK, Math.floor(Number(gemmaTopK)));
+    if (gemmaTopP !== undefined && gemmaTopP !== "") setField(graph, f.gemmaTopP, Number(gemmaTopP));
+    if (gemmaMinP !== undefined && gemmaMinP !== "") setField(graph, f.gemmaMinP, Number(gemmaMinP));
+    if (gemmaRepPen !== undefined && gemmaRepPen !== "") setField(graph, f.gemmaRepPen, Number(gemmaRepPen));
+    if (imgCompression !== undefined && imgCompression !== "") setField(graph, f.imgCompression, Math.floor(Number(imgCompression)));
+    if (upscaleModel !== undefined && upscaleModel !== "") setField(graph, f.upscaleModel, upscaleModel);
+    if (cameraPose !== undefined && cameraPose !== "") setField(graph, f.cameraPose, cameraPose);
+    if (speed !== undefined && speed !== "") setField(graph, f.speed, Number(speed));
 
     // VRAM-safe auto-engage for high-res video, split by cost:
     //  - VAE tiling (tilingThreshold): cheap on time, big OOM help at the decode — engage early.
     //  - block swap (swapThreshold): big OOM help during sampling but a heavy SPEED cost (every
     //    swapped block is offloaded/reloaded each step) — engage only at genuinely high res.
     // Low/mid-res renders (e.g. 480) keep the template's light block_swap = fast.
-    if (wf.vramSafe && resolution) {
+    if (wf.vramSafe && (resolution || width || height)) {
       const vs = wf.vramSafe;
-      const r = Math.floor(Number(resolution));
+      // Threshold key: the short-side `resolution` if the workflow uses it, else the larger of
+      // explicit width/height (so a 848×480 render scales VRAM-safety off the 848).
+      const r = resolution
+        ? Math.floor(Number(resolution))
+        : Math.max(Math.floor(Number(width) || 0), Math.floor(Number(height) || 0));
       if (vs.vaeTilingNode && r >= (vs.tilingThreshold || 400)) {
         setField(graph, { node: vs.vaeTilingNode, field: "enable_vae_tiling" }, true);
       }
@@ -450,10 +500,20 @@ app.post("/api/generate", async (req, res) => {
       }
     }
 
-    // Boolean toggles (e.g. Qwen's 4-step LoRA switch).
+    // Toggles. Default: a boolean written to one node field (e.g. Qwen's 4-step switch).
+    // Optional onValue/offValue write a chosen value instead of a boolean (e.g. drop a LoRA's
+    // strength to 0 when off). An undefined on/off value means "leave as-is", so the toggle can
+    // sit on top of an exposed field (loraHigh/loraLow) without clobbering it. `node` may be an
+    // array to drive several nodes at once (high + low LoRA selectors).
     for (const t of wf.toggles || []) {
-      const v = req.body.toggles?.[t.key];
-      setField(graph, { node: t.node, field: t.field }, v === undefined ? !!t.default : !!v);
+      const raw = req.body.toggles?.[t.key];
+      const on = raw === undefined ? !!t.default : !!raw;
+      let val;
+      if ("onValue" in t || "offValue" in t) val = on ? t.onValue : t.offValue;
+      else val = on;
+      if (val === undefined) continue; // leave the field at whatever the exposed control set
+      const nodes = Array.isArray(t.node) ? t.node : [t.node];
+      for (const n of nodes) setField(graph, { node: n, field: t.field }, val);
     }
 
     // Export options for video workflows (use the clean decoded frames, node `exportFramesNode`):

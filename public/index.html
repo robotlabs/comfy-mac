@@ -126,18 +126,54 @@
           </div>
           <select id="presets" title="Aspect-ratio presets">
             <option value="custom">Custom</option>
-            <option data-w="480" data-h="848">Small portrait · 480×848</option>
-            <option data-w="848" data-h="480">Small landscape · 848×480</option>
+            <option data-w="432" data-h="768">Small portrait · 432×768 (9:16 esatto, veloce)</option>
+            <option data-w="848" data-h="480">Landscape · 848×480 (WAN, non LTX)</option>
+            <option data-w="832" data-h="480">Landscape · 832×480 (WAN+LTX)</option>
             <option data-w="720" data-h="1280">HD portrait · 720×1280</option>
-            <option data-w="1080" data-h="1920">IG story · 1080×1920</option>
+            <option data-w="1080" data-h="1920">IG story/reel · 1080×1920</option>
+            <option data-w="576" data-h="1024">Reel src · 576×1024 (9:16, più dettaglio)</option>
             <option data-w="1080" data-h="1350">IG post · 1080×1350</option>
             <option data-w="1080" data-h="1080">IG square · 1080×1080</option>
             <option data-w="1024" data-h="1024">1:1 · 1024×1024</option>
             <option data-w="896" data-h="1152">3:4 · 896×1152</option>
             <option data-w="1152" data-h="896">4:3 · 1152×896</option>
             <option data-w="1088" data-h="1344">portrait · 1088×1344</option>
-            <option data-w="1344" data-h="1088">landscape · 1344×1088</option>
+            <option data-w="1344" data-h="1088">Landscape · 1344×1088 (WAN+LTX)</option>
+            <option data-w="640" data-h="384">Landscape · 640×384 (WAN+LTX)</option>
+            <option data-w="768" data-h="512">Landscape · 768×512 (WAN+LTX)</option>
+            <option data-w="1024" data-h="576">Landscape 16:9 · 1024×576 (WAN+LTX)</option>
+            <option data-w="480" data-h="848">Small portrait 480×848 (backup · near-9:16, LTX?)</option>
           </select>
+        </div>
+
+        <label class="field hidden" id="upscaleModelField">
+          <span class="label">Modello upscale <span class="dim">(la scala è nel modello; Size sotto = target finale)</span></span>
+          <select id="upscaleModel">
+            <option value="RealESRGAN_x2plus.pth">RealESRGAN ×2 (veloce, leggero)</option>
+            <option value="RealESRGAN_x4plus.safetensors">RealESRGAN ×4 (più dettaglio, pesante)</option>
+            <option value="RealESRGAN_x4plus_anime_6B.safetensors">RealESRGAN ×4 anime</option>
+          </select>
+        </label>
+
+        <div class="grid2">
+          <label class="field hidden" id="cameraPoseField">
+            <span class="label">Camera Motion</span>
+            <select id="cameraPose">
+              <option value="Static">Static</option>
+              <option value="Pan Up">Pan Up</option>
+              <option value="Pan Down">Pan Down</option>
+              <option value="Pan Left">Pan Left</option>
+              <option value="Pan Right">Pan Right</option>
+              <option value="Zoom In">Zoom In</option>
+              <option value="Zoom Out">Zoom Out</option>
+              <option value="Anti Clockwise (ACW)">Anti Clockwise (ACW)</option>
+              <option value="ClockWise (CW)">ClockWise (CW)</option>
+            </select>
+          </label>
+          <label class="field hidden" id="speedField">
+            <span class="label">Camera speed</span>
+            <input type="number" id="speed" min="0" max="5" step="0.1" />
+          </label>
         </div>
 
         <label class="field" id="denoiseField">
@@ -194,6 +230,46 @@
           <label class="field" id="stepsField">
             <span class="label">Steps</span>
             <input type="number" id="steps" min="1" max="100" />
+          </label>
+        </div>
+        <div class="grid2">
+          <label class="field hidden" id="condStrengthField">
+            <span class="label">Cond. strength (base) — ↑ riduce lo zoom</span>
+            <input type="number" id="condStrength" min="0" max="1" step="0.05" />
+          </label>
+          <label class="field hidden" id="condStrengthRefineField">
+            <span class="label">Cond. strength (refine)</span>
+            <input type="number" id="condStrengthRefine" min="0" max="1" step="0.05" />
+          </label>
+        </div>
+        <div class="grid2">
+          <label class="field hidden" id="gemmaTempField">
+            <span class="label">Gemma temp</span>
+            <input type="number" id="gemmaTemp" min="0.01" max="2" step="0.05" />
+          </label>
+          <label class="field hidden" id="gemmaTopPField">
+            <span class="label">Gemma top_p</span>
+            <input type="number" id="gemmaTopP" min="0" max="1" step="0.01" />
+          </label>
+        </div>
+        <div class="grid2">
+          <label class="field hidden" id="gemmaTopKField">
+            <span class="label">Gemma top_k</span>
+            <input type="number" id="gemmaTopK" min="0" max="1000" step="1" />
+          </label>
+          <label class="field hidden" id="gemmaRepPenField">
+            <span class="label">Gemma rep. penalty</span>
+            <input type="number" id="gemmaRepPen" min="0" max="5" step="0.05" />
+          </label>
+        </div>
+        <div class="grid2">
+          <label class="field hidden" id="gemmaMinPField">
+            <span class="label">Gemma min_p</span>
+            <input type="number" id="gemmaMinP" min="0" max="1" step="0.01" />
+          </label>
+          <label class="field hidden" id="imgCompressionField">
+            <span class="label">Img compression (chaining)</span>
+            <input type="number" id="imgCompression" min="0" max="100" step="1" />
           </label>
         </div>
 
