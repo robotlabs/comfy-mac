@@ -1,0 +1,3 @@
+```bash
+cd /workspace/runpod-slim/ComfyUI && source .venv-cu128/bin/activate && pip install -q -U huggingface_hub hf_xet && export HF_XET_HIGH_PERFORMANCE=1 && HF=$(command -v hf||echo huggingface-cli) && dl(){ [ -f "$3/$(basename "$2")" ]&&{ echo "skip $(basename "$2")";return; }; mkdir -p "$3"; $HF download "$1" "$2" --local-dir .dl && mv -f ".dl/$2" "$3/$(basename "$2")"; } && dl Comfy-Org/z_image_turbo split_files/diffusion_models/z_image_turbo_bf16.safetensors models/diffusion_models && dl Comfy-Org/z_image_turbo split_files/text_encoders/qwen_3_4b.safetensors models/text_encoders && dl Comfy-Org/z_image_turbo split_files/vae/ae.safetensors models/vae && rm -rf .dl && echo "=== DONE z-image — riavvia ComfyUI ==="
+```
